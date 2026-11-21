@@ -1,0 +1,144 @@
+{
+  "version": 2,
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": {
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+      }
+    },
+    {
+      "name": "debug",
+      "hidden": true,
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "release",
+      "hidden": true,
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    },
+    {
+      "name": "debug-O0",
+      "inherits": "debug",
+      "cacheVariables": {
+        "CMAKE_CXX_FLAGS_DEBUG": "-O0 -g"
+      }
+    },
+    {
+      "name": "debug-O1",
+      "inherits": "debug",
+      "cacheVariables": {
+        "CMAKE_CXX_FLAGS_DEBUG": "-O1 -g"
+      }
+    },
+    {
+      "name": "debug-O2",
+      "inherits": "debug",
+      "cacheVariables": {
+        "CMAKE_CXX_FLAGS_DEBUG": "-O2 -g"
+      }
+    },
+    {
+      "name": "debug-O3",
+      "inherits": "debug",
+      "cacheVariables": {
+        "CMAKE_CXX_FLAGS_DEBUG": "-O3 -g"
+      }
+    },
+    {
+      "name": "release-O0",
+      "inherits": "release",
+      "cacheVariables": {
+        "CMAKE_CXX_FLAGS_RELEASE": "-O0 -DNDEBUG"
+      }
+    },
+    {
+      "name": "release-O1",
+      "inherits": "release",
+      "cacheVariables": {
+        "CMAKE_CXX_FLAGS_RELEASE": "-O1 -DNDEBUG"
+      }
+    },
+    {
+      "name": "release-O2",
+      "inherits": "release",
+      "cacheVariables": {
+        "CMAKE_CXX_FLAGS_RELEASE": "-O2 -DNDEBUG"
+      }
+    },
+    {
+      "name": "release-O3",
+      "inherits": "release",
+      "cacheVariables": {
+        "CMAKE_CXX_FLAGS_RELEASE": "-O3 -DNDEBUG"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "debug-O0",
+      "configurePreset": "debug-O0",
+      "targets": [
+        "sky_net"
+      ]
+    },
+    {
+      "name": "debug-O1",
+      "configurePreset": "debug-O1",
+      "targets": [
+        "sky_net"
+      ]
+    },
+    {
+      "name": "debug-O2",
+      "configurePreset": "debug-O2",
+      "targets": [
+        "sky_net"
+      ]
+    },
+    {
+      "name": "debug-O3",
+      "configurePreset": "debug-O3",
+      "targets": [
+        "sky_net"
+      ]
+    },
+    {
+      "name": "release-O0",
+      "configurePreset": "release-O0",
+      "targets": [
+        "sky_net"
+      ]
+    },
+    {
+      "name": "release-O1",
+      "configurePreset": "release-O1",
+      "targets": [
+        "sky_net"
+      ]
+    },
+    {
+      "name": "release-O2",
+      "configurePreset": "release-O2",
+      "targets": [
+        "sky_net"
+      ]
+    },
+    {
+      "name": "release-O3",
+      "configurePreset": "release-O3",
+      "targets": [
+        "sky_net"
+      ]
+    }
+  ]
+}
