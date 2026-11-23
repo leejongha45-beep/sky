@@ -105,19 +105,19 @@ namespace sky::parser {
     return root_index_;
 }
 
-[[nodiscard]] const json::node& json::get_node(std::size_t index) const {
+[[nodiscard]] const json::node& json::get_node(std::size_t index) const& {
     assert(index < node_count_);
     return nodes_[index];
 }
 
-[[nodiscard]] std::string_view json::get_node_text(std::size_t index) const {
+[[nodiscard]] std::string_view json::get_node_text(std::size_t index) const& {
     const node& value = get_node(index);
     assert(value.offset < text_size_ &&
            value.length <= text_size_ - value.offset);
     return {&text_[value.offset], value.length};
 }
 
-[[nodiscard]] std::string_view json::get_key_text(std::size_t index) const {
+[[nodiscard]] std::string_view json::get_key_text(std::size_t index) const& {
     const node& value = get_node(index);
     if (value.key_length == 0) {
         return {};

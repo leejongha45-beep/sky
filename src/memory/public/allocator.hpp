@@ -1,9 +1,9 @@
 #pragma once
 
 #include <cstddef>
+#include <span>
 
 #include "types.hpp"
-#include "memory.hpp"
 
 namespace sky::memory {
 enum class alloc_error : exret_t {
@@ -22,8 +22,11 @@ public:
     bump_allocator& operator=(bump_allocator&&) = delete;
 
     struct init_info final {
-        buffer memory = {};
-        align_t align = ALIGN_ANY;
+        init_info(const std::span<std::byte>& bytes, align_t alignment);
+        init_info(const std::span<std::byte>&&, align_t) = delete;
+
+        const std::span<std::byte>& memory;
+        align_t align;
     };
     void initialize(const init_info& info);
 
@@ -33,7 +36,7 @@ public:
 private:
     [[nodiscard]] std::size_t calc_padding(std::size_t size) const;
 
-    buffer memory_ = {};
+    const std::span<std::byte>* memory_ = nullptr;
     std::size_t offset_ = 0;
     align_t align_ = ALIGN_ANY;
 };

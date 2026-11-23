@@ -55,9 +55,12 @@ public:
 
     [[nodiscard]] exret_t load(std::string_view path);
     [[nodiscard]] std::size_t get_root_index() const;
-    [[nodiscard]] const node& get_node(std::size_t index) const;
-    [[nodiscard]] std::string_view get_node_text(std::size_t index) const;
-    [[nodiscard]] std::string_view get_key_text(std::size_t index) const;
+    [[nodiscard]] const node& get_node(std::size_t index) const&;
+    const node& get_node(std::size_t) const&& = delete;
+    [[nodiscard]] std::string_view get_node_text(std::size_t index) const&;
+    std::string_view get_node_text(std::size_t) const&& = delete;
+    [[nodiscard]] std::string_view get_key_text(std::size_t index) const&;
+    std::string_view get_key_text(std::size_t) const&& = delete;
 
 private:
     struct token final {

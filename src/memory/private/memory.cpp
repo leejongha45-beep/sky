@@ -6,14 +6,14 @@
 #include <cstdint>
 #include <cstdio>
 #include <print>
+#include <span>
 #include <sys/mman.h>
 
 #include "types.hpp"
 
 namespace sky::memory {
 
-[[nodiscard]] virtual_memory_system&
-virtual_memory_system::get() {
+[[nodiscard]] virtual_memory_system& virtual_memory_system::get() {
     static virtual_memory_system instance;
     return instance;
 }
@@ -108,7 +108,7 @@ void virtual_memory_system::change_buffer_used_state(std::int64_t id,
 
     const bool is_used = (free_buffer_bitmap[word] & mask) != 0;
 
-    assert(is_used == (heap_slots_[id].buf.base != nullptr));
+    assert(is_used == (heap_slots_[id].bytes.data() != nullptr));
 
     return is_used;
 }
@@ -154,8 +154,7 @@ void virtual_memory_system::change_buffer_used_state(std::int64_t id,
 
     assert(is_use_id(id) == false);
     heap_slot& slot = heap_slots_[id];
-    slot.buf.base = base;
-    slot.buf.size = info.commit_pages * HEAP_PAGE_SIZE;
+    slot.bytes = std::span<std::byte>{base, info.commit_pages * HEAP_PAGE_SIZE};
     slot.reserved_pages = info.reserve_pages;
     slot.committed_pages = info.commit_pages;
     change_buffer_used_state(id, true);
@@ -168,7 +167,7 @@ void virtual_memory_system::destroy_heap_buffer(std::int64_t id) {
     assert(id >= 0 && id < MAX_HEAP_COUNT);
     assert(is_use_id(id) == true);
 
-    std::byte* addr = heap_slots_[id].buf.base;
+    std::byte* addr = heap_slots_[id].bytes.data();
     assert(addr != nullptr);
 
     std::size_t pages = heap_slots_[id].reserved_pages;
@@ -189,7 +188,8 @@ virtual_memory_system::resize_heap_buffer(std::int64_t id,
     assert(new_pages <= slot.reserved_pages);
 
     if (new_pages > slot.committed_pages) {
-        std::byte* addr = slot.buf.base + slot.committed_pages * HEAP_PAGE_SIZE;
+        std::byte* addr =
+            slot.bytes.data() + slot.committed_pages * HEAP_PAGE_SIZE;
         const std::size_t additional_pages = new_pages - slot.committed_pages;
         const exret_t result = commit_heap(addr, additional_pages);
         if (result != EXRET_SUCCESS) {
@@ -198,8 +198,19 @@ virtual_memory_system::resize_heap_buffer(std::int64_t id,
         slot.committed_pages = new_pages;
     }
 
-    slot.buf.size = new_pages * HEAP_PAGE_SIZE;
+    slot.bytes =
+        std::span<std::byte>{slot.bytes.data(), new_pages * HEAP_PAGE_SIZE};
 
     return EXRET_SUCCESS;
+}
+
+[[nodiscard]] const std::span<std::byte>&
+virtual_memory_system::get_heap_buffer(std::int64_t id) const& {
+    assert(is_use_id(id) == true);
+    return heap_slots_[id].bytes;
+}
+
+std::size_t virtual_memory_system::get_page_size() const {
+    return HEAP_PAGE_SIZE;
 }
 } // namespace sky::memory

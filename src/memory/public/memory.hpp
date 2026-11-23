@@ -1,8 +1,8 @@
 #pragma once
 
-#include <cassert>
 #include <cstddef>
 #include <cstdint>
+#include <span>
 
 #include "array.hpp"
 #include "types.hpp"
@@ -14,11 +14,6 @@ enum class memory_error : exret_t {
     COMMIT_HEAP_FAIL = 2,
     VIRTUAL_MEMORY_CREATE_FAIL = 3,
     NO_FREE_BUFFER_SLOT = 4,
-};
-
-struct buffer final {
-    std::byte* base = nullptr;
-    std::size_t size = 0;
 };
 
 class virtual_memory_system final
@@ -42,21 +37,17 @@ public:
     [[nodiscard]] exret_t resize_heap_buffer(std::int64_t id,
                                              std::size_t new_pages);
     void destroy_heap_buffer(std::int64_t id);
-    [[nodiscard]] const buffer& get_heap_buffer(std::int64_t id) const {
-        assert(is_use_id(id) == true);
-        return heap_slots_[id].buf;
-    }
-
-    constexpr std::size_t get_page_size() const {
-        return HEAP_PAGE_SIZE;
-    }
+    [[nodiscard]] const std::span<std::byte>&
+    get_heap_buffer(std::int64_t id) const&;
+    const std::span<std::byte>& get_heap_buffer(std::int64_t) const&& = delete;
+    std::size_t get_page_size() const;
 
 private:
     virtual_memory_system() = default;
     ~virtual_memory_system() = default;
 
     struct heap_slot final {
-        buffer buf{};
+        std::span<std::byte> bytes{};
         std::size_t reserved_pages = 0;
         std::size_t committed_pages = 0;
     };
