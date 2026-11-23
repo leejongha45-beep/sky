@@ -62,7 +62,7 @@ virtual_memory_system::get_free_id(std::int64_t& out_id) const {
     for (std::size_t word = 0; word < free_buffer_bitmap.get_size(); ++word) {
         const std::uint64_t free_bits = ~free_buffer_bitmap[word];
         if (free_bits != 0) {
-            const auto bit =
+            const std::size_t bit =
                 static_cast<std::size_t>(std::countr_zero(free_bits));
             const std::size_t id = word * BITMAP_WORD_BITS + bit;
             if (id >= MAX_HEAP_COUNT) {
@@ -80,7 +80,7 @@ void virtual_memory_system::change_buffer_used_state(std::int64_t id,
                                                      bool is_use) {
     assert(id >= 0 && id < static_cast<std::int64_t>(MAX_HEAP_COUNT));
 
-    const auto index = static_cast<std::size_t>(id);
+    const std::size_t index = static_cast<std::size_t>(id);
     const std::size_t word = index / BITMAP_WORD_BITS;
     const std::size_t bit = index % BITMAP_WORD_BITS;
     const std::uint64_t mask = std::uint64_t{1} << bit;
@@ -95,7 +95,7 @@ void virtual_memory_system::change_buffer_used_state(std::int64_t id,
 [[nodiscard]] bool virtual_memory_system::is_use_id(std::int64_t id) const {
     assert(id >= 0 && id < static_cast<std::int64_t>(MAX_HEAP_COUNT));
 
-    const auto index = static_cast<std::size_t>(id);
+    const std::size_t index = static_cast<std::size_t>(id);
     const std::size_t word = index / BITMAP_WORD_BITS;
     const std::size_t bit = index % BITMAP_WORD_BITS;
     const std::uint64_t mask = std::uint64_t{1} << bit;
