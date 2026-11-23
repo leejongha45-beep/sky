@@ -1,0 +1,12 @@
+# LLVM 23.1.0. Read compile commands from the project build configuration.
+# Full selected checks are run separately through clang-tidy.
+CompileFlags:
+  CompilationDatabase: build/debug-O0
+
+Diagnostics:
+  UnusedIncludes: Strict
+  MissingIncludes: Strict
+  Includes:
+    AnalyzeAngledIncludes: true
+  ClangTidy:
+    FastCheckFilter: Strict

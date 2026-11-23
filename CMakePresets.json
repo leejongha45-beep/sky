@@ -7,7 +7,8 @@
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/build/${presetName}",
       "cacheVariables": {
-        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "CMAKE_CXX_INCLUDE_WHAT_YOU_USE": "/home/ubuntu/tools/bin/include-what-you-use"
       }
     },
     {
@@ -86,59 +87,35 @@
   "buildPresets": [
     {
       "name": "debug-O0",
-      "configurePreset": "debug-O0",
-      "targets": [
-        "sky_net"
-      ]
+      "configurePreset": "debug-O0"
     },
     {
       "name": "debug-O1",
-      "configurePreset": "debug-O1",
-      "targets": [
-        "sky_net"
-      ]
+      "configurePreset": "debug-O1"
     },
     {
       "name": "debug-O2",
-      "configurePreset": "debug-O2",
-      "targets": [
-        "sky_net"
-      ]
+      "configurePreset": "debug-O2"
     },
     {
       "name": "debug-O3",
-      "configurePreset": "debug-O3",
-      "targets": [
-        "sky_net"
-      ]
+      "configurePreset": "debug-O3"
     },
     {
       "name": "release-O0",
-      "configurePreset": "release-O0",
-      "targets": [
-        "sky_net"
-      ]
+      "configurePreset": "release-O0"
     },
     {
       "name": "release-O1",
-      "configurePreset": "release-O1",
-      "targets": [
-        "sky_net"
-      ]
+      "configurePreset": "release-O1"
     },
     {
       "name": "release-O2",
-      "configurePreset": "release-O2",
-      "targets": [
-        "sky_net"
-      ]
+      "configurePreset": "release-O2"
     },
     {
       "name": "release-O3",
-      "configurePreset": "release-O3",
-      "targets": [
-        "sky_net"
-      ]
+      "configurePreset": "release-O3"
     }
   ]
 }
