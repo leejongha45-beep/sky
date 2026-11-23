@@ -44,7 +44,7 @@ public:
                                              std::size_t new_pages);
     void destroy_heap_buffer(std::int64_t id);
     [[nodiscard]] const buffer& get_heap_buffer(std::int64_t id) const {
-        assert(is_use_id(id));
+        assert(is_use_id(id) == true);
         return heap_slots_[id].buf;
     }
 

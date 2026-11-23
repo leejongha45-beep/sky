@@ -176,7 +176,7 @@ void virtual_memory_system::destroy_heap_buffer(std::int64_t id) {
 [[nodiscard]] exret_t
 virtual_memory_system::resize_heap_buffer(std::int64_t id,
                                           std::size_t new_pages) {
-    assert(is_use_id(id));
+    assert(is_use_id(id) == true);
 
     heap_slot& slot = heap_slots_[id];
     assert(new_pages <= slot.reserved_pages);
