@@ -1,19 +1,30 @@
 #include "file.hpp"
 
+// clang-format off
 #include <sys/types.h>
+// clang-format on
 
 #include <bit>
 #include <cassert>
+#include <climits> // IWYU pragma: keep
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
+#include <cstring>
 #include <fcntl.h>
+#include <linux/limits.h> // IWYU pragma: keep
 #include <print>
+#include <string_view>
 #include <unistd.h>
 
 #include "types.hpp"
 
 namespace sky::io {
+
+[[nodiscard]] file_system& file_system::get() {
+    static file_system instance;
+    return instance;
+}
 
 [[nodiscard]] exret_t file_system::get_free_id(std::int64_t& out_id) const {
     assert(out_id == INVALID_ID);
@@ -66,10 +77,12 @@ void file_system::change_file_used_state(std::int64_t id, bool is_use) {
     }
 }
 
-[[nodiscard]] exret_t
-file_system::open_file(const char* path, std::int64_t& out_id,
-                       file::flags flags, file::mode mode) {
-    assert(path != nullptr);
+[[nodiscard]] exret_t file_system::open_file(std::string_view path,
+                                             std::int64_t& out_id,
+                                             file::flag flag, file::mode mode) {
+    assert(path.data() != nullptr);
+    assert(path.size() < PATH_MAX);
+    assert(path.find('\0') == std::string_view::npos);
     assert(out_id == INVALID_ID);
 
     std::int64_t id = INVALID_ID;
@@ -82,23 +95,32 @@ file_system::open_file(const char* path, std::int64_t& out_id,
         return static_cast<exret_t>(file_error::OPEN_FILE_FAIL);
     }
 
-    const int fd =
-        ::open(path, static_cast<int>(flags), static_cast<mode_t>(mode));
+    char terminated_path[PATH_MAX];
+    const std::size_t length = path.copy(terminated_path, path.size());
+    terminated_path[length] = '\0';
+
+    const int fd = ::open(terminated_path, static_cast<int>(flag),
+                          static_cast<mode_t>(mode));
     if (fd == -1) {
         std::perror("open");
         return static_cast<exret_t>(file_error::OPEN_FILE_FAIL);
     }
 
     assert(is_use_id(id) == false);
-    files_[id].fd = fd;
+    file& slot = files_[id];
+    slot.fd = fd;
+    slot.open_flag = flag;
+    slot.create_mode = mode;
+    std::memcpy(&slot.path[0], terminated_path, length + 1);
     change_file_used_state(id, true);
     out_id = id;
+
     return EXRET_SUCCESS;
 }
 
-[[nodiscard]] exret_t
-file_system::read_file(std::int64_t id, std::byte* dst, std::size_t size,
-                       std::size_t& out_bytes) {
+[[nodiscard]] exret_t file_system::read_file(std::int64_t id, std::byte* dst,
+                                             std::size_t size,
+                                             std::size_t& out_bytes) {
     assert(is_use_id(id) == true);
     assert(dst != nullptr || size == 0);
     assert(out_bytes == 0);
@@ -111,12 +133,14 @@ file_system::read_file(std::int64_t id, std::byte* dst, std::size_t size,
     }
 
     out_bytes = static_cast<std::size_t>(result);
+
     return EXRET_SUCCESS;
 }
 
-[[nodiscard]] exret_t
-file_system::write_file(std::int64_t id, const std::byte* src, std::size_t size,
-                        std::size_t& out_bytes) {
+[[nodiscard]] exret_t file_system::write_file(std::int64_t id,
+                                              const std::byte* src,
+                                              std::size_t size,
+                                              std::size_t& out_bytes) {
     assert(is_use_id(id) == true);
     assert(src != nullptr || size == 0);
     assert(out_bytes == 0);
@@ -129,6 +153,7 @@ file_system::write_file(std::int64_t id, const std::byte* src, std::size_t size,
     }
 
     out_bytes = static_cast<std::size_t>(result);
+
     return EXRET_SUCCESS;
 }
 
@@ -142,6 +167,9 @@ void file_system::close_file(std::int64_t id) {
     }
 
     slot.fd = -1;
+    slot.open_flag = file::flag::READ_ONLY;
+    slot.create_mode = file::mode::NONE;
+    slot.path[0] = '\0';
     change_file_used_state(id, false);
 }
 

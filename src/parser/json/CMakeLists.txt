@@ -6,3 +6,9 @@ target_include_directories(
     PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/public"
     PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/private"
 )
+
+target_link_libraries(
+    sky_json
+    PUBLIC sky::base sky::container
+    PRIVATE sky::file
+)

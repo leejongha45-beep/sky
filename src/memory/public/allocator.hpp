@@ -7,7 +7,7 @@
 
 namespace sky::memory {
 enum class alloc_error : exret_t {
-    NOT_ENOUGH_SPACE = 1,
+    NOT_ENOUGH_SPACE = 100,
 };
 
 class bump_allocator final

@@ -24,8 +24,7 @@ struct buffer final {
 class virtual_memory_system final
 {
 public:
-    virtual_memory_system() = default;
-    ~virtual_memory_system() = default;
+    [[nodiscard]] static virtual_memory_system& get();
 
     virtual_memory_system(const virtual_memory_system&) = delete;
     virtual_memory_system& operator=(const virtual_memory_system&) = delete;
@@ -53,6 +52,9 @@ public:
     }
 
 private:
+    virtual_memory_system() = default;
+    ~virtual_memory_system() = default;
+
     struct heap_slot final {
         buffer buf{};
         std::size_t reserved_pages = 0;

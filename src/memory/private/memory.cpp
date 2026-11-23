@@ -12,6 +12,12 @@
 
 namespace sky::memory {
 
+[[nodiscard]] virtual_memory_system&
+virtual_memory_system::get() {
+    static virtual_memory_system instance;
+    return instance;
+}
+
 [[nodiscard]] exret_t virtual_memory_system::reserve_heap(std::byte*& out,
                                                           std::size_t pages) {
     assert(out == nullptr);
@@ -103,6 +109,7 @@ void virtual_memory_system::change_buffer_used_state(std::int64_t id,
     const bool is_used = (free_buffer_bitmap[word] & mask) != 0;
 
     assert(is_used == (heap_slots_[id].buf.base != nullptr));
+
     return is_used;
 }
 
@@ -192,6 +199,7 @@ virtual_memory_system::resize_heap_buffer(std::int64_t id,
     }
 
     slot.buf.size = new_pages * HEAP_PAGE_SIZE;
+
     return EXRET_SUCCESS;
 }
 } // namespace sky::memory
