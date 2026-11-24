@@ -25,6 +25,7 @@ enum class socket_error : exret_t {
     SEND_TO_SOCKET_FAIL = 311,
     ACCEPT_WOULD_BLOCK = 312,
     DATAGRAM_TRUNCATED = 313,
+    EPOLL_CREATE_ERROR = 314,
 };
 
 class socket final
@@ -37,6 +38,10 @@ public:
     socket& operator=(const socket&) = delete;
     socket(socket&&) = delete;
     socket& operator=(socket&&) = delete;
+
+    enum class id : std::int64_t {
+        INVALID = INVALID_ID,
+    };
 
     enum class domain : int {
         LOCAL = AF_UNIX,
@@ -80,7 +85,7 @@ public:
 
     [[nodiscard]] exret_t bind(const sockaddr* address, socklen_t address_size);
     [[nodiscard]] exret_t listen(int backlog);
-    [[nodiscard]] exret_t accept(std::int64_t& out_id) const;
+    [[nodiscard]] exret_t accept(id& out_id) const;
     [[nodiscard]] exret_t connect(const sockaddr* address,
                                   socklen_t address_size);
     [[nodiscard]] exret_t finish_connect();
@@ -93,6 +98,8 @@ public:
     [[nodiscard]] exret_t send_to(std::span<const std::byte> src,
                                   const address& destination,
                                   std::size_t& out_bytes);
+    [[nodiscard]] const int& get_fd() const&;
+    const int& get_fd() const&& = delete;
     [[nodiscard]] const address& get_local_address() const&;
     const address& get_local_address() const&& = delete;
     [[nodiscard]] bool has_peer_address() const;

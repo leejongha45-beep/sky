@@ -64,14 +64,14 @@ socket::address_matches_domain(const sockaddr* address,
     return EXRET_SUCCESS;
 }
 
-[[nodiscard]] exret_t socket::accept(std::int64_t& out_id) const {
+[[nodiscard]] exret_t socket::accept(id& out_id) const {
     assert(fd_ >= 0);
     assert(state_ == state::LISTENING);
-    assert(out_id == INVALID_ID);
+    assert(out_id == id::INVALID);
 
     socket_system& system = socket_system::get();
-    std::int64_t id = INVALID_ID;
-    const exret_t result = system.get_free_id(id);
+    id free_id = id::INVALID;
+    const exret_t result = system.get_free_socket_id(free_id);
     if (result != EXRET_SUCCESS) {
         std::print(stderr,
                    "accept: no free socket slot "
@@ -93,8 +93,8 @@ socket::address_matches_domain(const sockaddr* address,
         return static_cast<exret_t>(socket_error::ACCEPT_SOCKET_FAIL);
     }
 
-    assert(system.is_use_id(id) == false);
-    socket& slot = system.sockets_[id];
+    assert(system.is_use_socket_id(free_id) == false);
+    socket& slot = system.sockets_[static_cast<std::int64_t>(free_id)];
     slot.fd_ = accepted_fd;
     slot.state_ = state::CONNECTED;
     slot.domain_ = domain_;
@@ -103,8 +103,8 @@ socket::address_matches_domain(const sockaddr* address,
     slot.options_ = options_;
     slot.update_local_address();
     slot.store_peer_address(peer);
-    system.change_socket_used_state(id, true);
-    out_id = id;
+    system.change_socket_used_state(free_id, true);
+    out_id = free_id;
     return EXRET_SUCCESS;
 }
 
@@ -286,6 +286,11 @@ socket::address_matches_domain(const sockaddr* address,
 
     out_bytes = static_cast<std::size_t>(result);
     return EXRET_SUCCESS;
+}
+
+[[nodiscard]] const int& socket::get_fd() const& {
+    assert(fd_ >= 0);
+    return fd_;
 }
 
 [[nodiscard]] const socket::address& socket::get_local_address() const& {

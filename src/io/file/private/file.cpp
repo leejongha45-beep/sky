@@ -53,9 +53,9 @@ namespace sky::io {
 [[nodiscard]] bool file_system::is_use_id(std::int64_t id) const {
     assert(id >= 0 && id < static_cast<std::int64_t>(MAX_FILE_COUNT));
 
-    const std::size_t index = static_cast<std::size_t>(id);
-    const std::size_t word = index / BITMAP_WORD_BITS;
-    const std::size_t bit = index % BITMAP_WORD_BITS;
+    const std::size_t idx = static_cast<std::size_t>(id);
+    const std::size_t word = idx / BITMAP_WORD_BITS;
+    const std::size_t bit = idx % BITMAP_WORD_BITS;
     const std::uint64_t mask = std::uint64_t{1} << bit;
     const bool is_used = (used_file_bitmap_[word] & mask) != 0;
 
@@ -66,9 +66,9 @@ namespace sky::io {
 void file_system::change_file_used_state(std::int64_t id, bool is_use) {
     assert(id >= 0 && id < static_cast<std::int64_t>(MAX_FILE_COUNT));
 
-    const std::size_t index = static_cast<std::size_t>(id);
-    const std::size_t word = index / BITMAP_WORD_BITS;
-    const std::size_t bit = index % BITMAP_WORD_BITS;
+    const std::size_t idx = static_cast<std::size_t>(id);
+    const std::size_t word = idx / BITMAP_WORD_BITS;
+    const std::size_t bit = idx % BITMAP_WORD_BITS;
     const std::uint64_t mask = std::uint64_t{1} << bit;
 
     if (is_use) {

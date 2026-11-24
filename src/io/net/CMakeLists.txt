@@ -1,7 +1,9 @@
 add_library(
     sky_net STATIC
+    public/epoll.hpp
     public/socket.hpp
     public/socket_system.hpp
+    private/epoll.cpp
     private/socket.cpp
     private/socket_system.cpp
 )
