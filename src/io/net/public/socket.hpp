@@ -95,6 +95,9 @@ public:
                                   std::size_t& out_bytes);
     [[nodiscard]] const address& get_local_address() const&;
     const address& get_local_address() const&& = delete;
+    [[nodiscard]] bool has_peer_address() const;
+    [[nodiscard]] const address& get_peer_address() const&;
+    const address& get_peer_address() const&& = delete;
 
 private:
     friend class socket_system;
@@ -112,6 +115,8 @@ private:
     [[nodiscard]] bool address_matches_domain(const sockaddr* address,
                                               socklen_t address_size) const;
     void update_local_address();
+    void update_peer_address();
+    void store_peer_address(const address& peer);
     [[nodiscard]] bool has_local_port() const;
 
     int fd_ = -1;
@@ -121,6 +126,7 @@ private:
     protocol protocol_ = protocol::DEFAULT;
     option options_ = option::NONE;
     address local_address_{};
+    address peer_address_{};
 };
 
 } // namespace sky::io

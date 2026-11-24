@@ -80,8 +80,11 @@ socket::address_matches_domain(const sockaddr* address,
         return result;
     }
 
+    address peer{};
+    peer.size = sizeof(peer.storage);
     const int flags = static_cast<int>(options_);
-    const int accepted_fd = ::accept4(fd_, nullptr, nullptr, flags);
+    const int accepted_fd = ::accept4(
+        fd_, reinterpret_cast<sockaddr*>(&peer.storage), &peer.size, flags);
     if (accepted_fd == -1) {
         if (errno == EAGAIN || errno == EWOULDBLOCK) {
             return static_cast<exret_t>(socket_error::ACCEPT_WOULD_BLOCK);
@@ -99,6 +102,7 @@ socket::address_matches_domain(const sockaddr* address,
     slot.protocol_ = protocol_;
     slot.options_ = options_;
     slot.update_local_address();
+    slot.store_peer_address(peer);
     system.change_socket_used_state(id, true);
     out_id = id;
     return EXRET_SUCCESS;
@@ -114,11 +118,13 @@ socket::address_matches_domain(const sockaddr* address,
     if (::connect(fd_, address, address_size) == 0) {
         state_ = state::CONNECTED;
         update_local_address();
+        update_peer_address();
         return EXRET_SUCCESS;
     }
 
     if (errno == EINPROGRESS) {
         state_ = state::CONNECTING;
+        peer_address_ = {};
         return static_cast<exret_t>(socket_error::CONNECT_IN_PROGRESS);
     }
     if (errno == EAGAIN && domain_ == domain::LOCAL) {
@@ -127,6 +133,7 @@ socket::address_matches_domain(const sockaddr* address,
 
     std::perror("connect");
     state_ = state::CONNECT_FAILED;
+    peer_address_ = {};
     return static_cast<exret_t>(socket_error::CONNECT_SOCKET_FAIL);
 }
 
@@ -165,6 +172,7 @@ socket::address_matches_domain(const sockaddr* address,
 
     state_ = state::CONNECTED;
     update_local_address();
+    update_peer_address();
     return EXRET_SUCCESS;
 }
 
@@ -285,6 +293,15 @@ socket::address_matches_domain(const sockaddr* address,
     return local_address_;
 }
 
+[[nodiscard]] bool socket::has_peer_address() const {
+    return peer_address_.size > 0;
+}
+
+[[nodiscard]] const socket::address& socket::get_peer_address() const& {
+    assert(has_peer_address());
+    return peer_address_;
+}
+
 void socket::update_local_address() {
     address local{};
     local.size = sizeof(local.storage);
@@ -296,6 +313,28 @@ void socket::update_local_address() {
     }
 
     local_address_ = local;
+}
+
+void socket::update_peer_address() {
+    address peer{};
+    peer.size = sizeof(peer.storage);
+    if (::getpeername(fd_, reinterpret_cast<sockaddr*>(&peer.storage),
+                      &peer.size) == -1) {
+        std::perror("getpeername");
+        peer_address_ = {};
+        return;
+    }
+
+    store_peer_address(peer);
+}
+
+void socket::store_peer_address(const address& peer) {
+    if (peer.size <= sizeof(peer.storage.ss_family)) {
+        peer_address_ = {};
+        return;
+    }
+
+    peer_address_ = peer;
 }
 
 [[nodiscard]] bool socket::has_local_port() const {

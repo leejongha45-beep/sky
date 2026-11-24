@@ -124,6 +124,7 @@ void socket_system::close_socket(std::int64_t id) {
     slot.protocol_ = socket::protocol::DEFAULT;
     slot.options_ = socket::option::NONE;
     slot.local_address_ = {};
+    slot.peer_address_ = {};
     change_socket_used_state(id, false);
 }
 
