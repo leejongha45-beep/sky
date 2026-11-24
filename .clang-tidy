@@ -131,6 +131,8 @@ Checks: >-
   clang-analyzer-webkit.RefCntblBaseVirtualDtor,
   clang-analyzer-webkit.UncountedLambdaCapturesChecker
 CheckOptions:
+  # glibc exposes these declarations through <poll.h> and <sys/socket.h>.
+  'misc-include-cleaner.IgnoreHeaders': '(^|/)sys/poll[.]h;(^|/)asm-generic/socket[.]h'
   'clang-analyzer-unix.StdCLibraryFunctions:ModelPOSIX': 'true'
   'clang-analyzer-optin.cplusplus.UninitializedObject:Pedantic': 'true'
   'clang-analyzer-security.cert.env.InvalidPtr:InvalidatingGetEnv': 'false'

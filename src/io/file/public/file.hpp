@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <fcntl.h>
 #include <linux/limits.h> // IWYU pragma: keep
+#include <span>
 #include <string_view>
 
 #include "array.hpp"
@@ -48,7 +49,7 @@ public:
 
     [[nodiscard]] friend constexpr flag operator|(flag left, flag right) {
         return static_cast<flag>(static_cast<int>(left) |
-                                       static_cast<int>(right));
+                                 static_cast<int>(right));
     }
 
     enum class mode : std::uint32_t {
@@ -69,13 +70,19 @@ public:
 
     [[nodiscard]] friend constexpr mode operator|(mode left, mode right) {
         return static_cast<mode>(static_cast<std::uint32_t>(left) |
-                                      static_cast<std::uint32_t>(right));
+                                 static_cast<std::uint32_t>(right));
     }
+
+    struct open_info final {
+        std::string_view path;
+        file::flag flag;
+        file::mode mode;
+    };
 
 private:
     friend class file_system;
 
-    int fd = -1;
+    int fd_ = -1;
     flag open_flag = flag::READ_ONLY;
     mode create_mode = mode::NONE;
     container::array<char, PATH_MAX> path = {};
@@ -91,13 +98,13 @@ public:
     file_system(file_system&&) = delete;
     file_system& operator=(file_system&&) = delete;
 
-    [[nodiscard]] exret_t
-    open_file(std::string_view path, std::int64_t& out_id,
-              file::flag flag, file::mode mode);
-    [[nodiscard]] exret_t read_file(std::int64_t id, std::byte* dst,
-                                    std::size_t size, std::size_t& out_bytes);
-    [[nodiscard]] exret_t write_file(std::int64_t id, const std::byte* src,
-                                     std::size_t size, std::size_t& out_bytes);
+    [[nodiscard]] exret_t open_file(const file::open_info& info,
+                                    std::int64_t& out_id);
+    [[nodiscard]] exret_t read_file(std::int64_t id, std::span<std::byte> dst,
+                                    std::size_t& out_bytes);
+    [[nodiscard]] exret_t write_file(std::int64_t id,
+                                     std::span<const std::byte> src,
+                                     std::size_t& out_bytes);
     void close_file(std::int64_t id);
 
 private:

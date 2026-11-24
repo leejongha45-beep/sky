@@ -10,3 +10,10 @@ Diagnostics:
     AnalyzeAngledIncludes: true
   ClangTidy:
     FastCheckFilter: Strict
+---
+If:
+  PathMatch: src/io/net/private/socket\.cpp
+Diagnostics:
+  Includes:
+    # glibc exposes these declarations through <poll.h> and <sys/socket.h>.
+    IgnoreHeader: ['(^|/)sys/poll[.]h$', '(^|/)asm-generic/socket[.]h$']

@@ -7,6 +7,7 @@
 #include <cstdio>
 #include <linux/limits.h> // IWYU pragma: keep
 #include <print>
+#include <span>
 #include <string_view>
 
 #include "array.hpp"
@@ -36,8 +37,12 @@ namespace sky::parser {
 
     io::file_system& fs = io::file_system::get();
     std::int64_t file_id = INVALID_ID;
-    exret_t result = fs.open_file(path, file_id, io::file::flag::READ_ONLY,
-                                  io::file::mode::NONE);
+    const io::file::open_info file_info{
+        .path = path,
+        .flag = io::file::flag::READ_ONLY,
+        .mode = io::file::mode::NONE,
+    };
+    exret_t result = fs.open_file(file_info, file_id);
     if (result != EXRET_SUCCESS) {
         std::print(stderr,
                    "json::load: open_file failed (path={}, error_code={})\n",
@@ -48,9 +53,10 @@ namespace sky::parser {
     std::size_t loaded_bytes = 0;
     while (loaded_bytes < MAX_JSON_SOURCE_BYTES) {
         std::size_t read_bytes = 0;
-        std::byte* dst = reinterpret_cast<std::byte*>(&text_[loaded_bytes]);
-        const std::size_t remaining = MAX_JSON_SOURCE_BYTES - loaded_bytes;
-        result = fs.read_file(file_id, dst, remaining, read_bytes);
+        const std::span<char> remaining{&text_[loaded_bytes],
+                                        text_.get_size() - loaded_bytes};
+        result = fs.read_file(file_id, std::as_writable_bytes(remaining),
+                              read_bytes);
         if (result != EXRET_SUCCESS || read_bytes == 0) {
             break;
         }
@@ -60,7 +66,8 @@ namespace sky::parser {
     std::size_t extra_bytes = 0;
     if (result == EXRET_SUCCESS && loaded_bytes == MAX_JSON_SOURCE_BYTES) {
         std::byte extra_byte{};
-        result = fs.read_file(file_id, &extra_byte, 1, extra_bytes);
+        result = fs.read_file(file_id, std::span<std::byte>{&extra_byte, 1},
+                              extra_bytes);
     }
 
     fs.close_file(file_id);

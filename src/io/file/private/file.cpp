@@ -14,6 +14,7 @@
 #include <fcntl.h>
 #include <linux/limits.h> // IWYU pragma: keep
 #include <print>
+#include <span>
 #include <string_view>
 #include <unistd.h>
 
@@ -58,7 +59,7 @@ namespace sky::io {
     const std::uint64_t mask = std::uint64_t{1} << bit;
     const bool is_used = (used_file_bitmap_[word] & mask) != 0;
 
-    assert(is_used == true ? files_[id].fd >= 0 : files_[id].fd == -1);
+    assert(is_used == true ? files_[id].fd_ >= 0 : files_[id].fd_ == -1);
     return is_used;
 }
 
@@ -77,9 +78,9 @@ void file_system::change_file_used_state(std::int64_t id, bool is_use) {
     }
 }
 
-[[nodiscard]] exret_t file_system::open_file(std::string_view path,
-                                             std::int64_t& out_id,
-                                             file::flag flag, file::mode mode) {
+[[nodiscard]] exret_t file_system::open_file(const file::open_info& info,
+                                             std::int64_t& out_id) {
+    const std::string_view path = info.path;
     assert(path.data() != nullptr);
     assert(path.size() < PATH_MAX);
     assert(path.find('\0') == std::string_view::npos);
@@ -99,8 +100,8 @@ void file_system::change_file_used_state(std::int64_t id, bool is_use) {
     const std::size_t length = path.copy(terminated_path, path.size());
     terminated_path[length] = '\0';
 
-    const int fd = ::open(terminated_path, static_cast<int>(flag),
-                          static_cast<mode_t>(mode));
+    const int fd = ::open(terminated_path, static_cast<int>(info.flag),
+                          static_cast<mode_t>(info.mode));
     if (fd == -1) {
         std::perror("open");
         return static_cast<exret_t>(file_error::OPEN_FILE_FAIL);
@@ -108,9 +109,9 @@ void file_system::change_file_used_state(std::int64_t id, bool is_use) {
 
     assert(is_use_id(id) == false);
     file& slot = files_[id];
-    slot.fd = fd;
-    slot.open_flag = flag;
-    slot.create_mode = mode;
+    slot.fd_ = fd;
+    slot.open_flag = info.flag;
+    slot.create_mode = info.mode;
     std::memcpy(&slot.path[0], terminated_path, length + 1);
     change_file_used_state(id, true);
     out_id = id;
@@ -118,15 +119,15 @@ void file_system::change_file_used_state(std::int64_t id, bool is_use) {
     return EXRET_SUCCESS;
 }
 
-[[nodiscard]] exret_t file_system::read_file(std::int64_t id, std::byte* dst,
-                                             std::size_t size,
+[[nodiscard]] exret_t file_system::read_file(std::int64_t id,
+                                             std::span<std::byte> dst,
                                              std::size_t& out_bytes) {
     assert(is_use_id(id) == true);
-    assert(dst != nullptr || size == 0);
+    assert(dst.data() != nullptr || dst.empty());
     assert(out_bytes == 0);
 
-    const int fd = files_[id].fd;
-    const ssize_t result = ::read(fd, dst, size);
+    const int fd = files_[id].fd_;
+    const ssize_t result = ::read(fd, dst.data(), dst.size());
     if (result == -1) {
         std::perror("read");
         return static_cast<exret_t>(file_error::READ_FILE_FAIL);
@@ -138,15 +139,14 @@ void file_system::change_file_used_state(std::int64_t id, bool is_use) {
 }
 
 [[nodiscard]] exret_t file_system::write_file(std::int64_t id,
-                                              const std::byte* src,
-                                              std::size_t size,
+                                              std::span<const std::byte> src,
                                               std::size_t& out_bytes) {
     assert(is_use_id(id) == true);
-    assert(src != nullptr || size == 0);
+    assert(src.data() != nullptr || src.empty());
     assert(out_bytes == 0);
 
-    const int fd = files_[id].fd;
-    const ssize_t result = ::write(fd, src, size);
+    const int fd = files_[id].fd_;
+    const ssize_t result = ::write(fd, src.data(), src.size());
     if (result == -1) {
         std::perror("write");
         return static_cast<exret_t>(file_error::WRITE_FILE_FAIL);
@@ -161,12 +161,12 @@ void file_system::close_file(std::int64_t id) {
     assert(is_use_id(id) == true);
 
     file& slot = files_[id];
-    const int result = ::close(slot.fd);
+    const int result = ::close(slot.fd_);
     if (result == -1) {
         std::perror("close");
     }
 
-    slot.fd = -1;
+    slot.fd_ = -1;
     slot.open_flag = file::flag::READ_ONLY;
     slot.create_mode = file::mode::NONE;
     slot.path[0] = '\0';
