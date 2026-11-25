@@ -129,7 +129,6 @@ void socket_system::destroy_socket(socket::id id) {
         epoll& poller = epolls_[epoll_idx];
         if (poller.watch_events_[socket_idx] != epoll::event::NONE) {
             poller.unwatch(id);
-            poller.watch_events_[socket_idx] = epoll::event::NONE;
         }
     }
 
@@ -139,14 +138,7 @@ void socket_system::destroy_socket(socket::id id) {
         std::perror("close");
     }
 
-    slot.fd_ = -1;
-    slot.state_ = socket::state::CLOSED;
-    slot.domain_ = socket::domain::LOCAL;
-    slot.type_ = socket::type::STREAM;
-    slot.protocol_ = socket::protocol::DEFAULT;
-    slot.options_ = socket::option::NONE;
-    slot.local_address_ = {};
-    slot.peer_address_ = {};
+    slot.reset();
     change_socket_used_state(id, false);
 }
 
@@ -177,7 +169,8 @@ socket_system::get_free_epoll_id(epoll::id& out_id) const {
     const std::uint64_t mask = std::uint64_t{1} << index;
     const bool is_used = (used_epoll_bitmap_ & mask) != 0;
 
-    assert(is_used == true ? epolls_[index].fd >= 0 : epolls_[index].fd == -1);
+    assert(is_used == true ? epolls_[index].fd_ >= 0
+                           : epolls_[index].fd_ == -1);
     return is_used;
 }
 
@@ -216,7 +209,7 @@ socket_system::create_epoll(const epoll::create_info& info, epoll::id& out_id) {
 
     assert(is_use_epoll_id(id) == false);
     epoll& slot = epolls_[static_cast<std::int64_t>(id)];
-    slot.fd = epoll_fd;
+    slot.fd_ = epoll_fd;
     change_epoll_used_state(id, true);
     out_id = id;
     return EXRET_SUCCESS;
@@ -226,14 +219,11 @@ void socket_system::destroy_epoll(epoll::id id) {
     assert(is_use_epoll_id(id) == true);
 
     epoll& slot = epolls_[static_cast<std::int64_t>(id)];
-    if (::close(slot.fd) == -1) {
+    if (::close(slot.fd_) == -1) {
         std::perror("close");
     }
 
-    slot.fd = -1;
-    for (std::size_t idx = 0; idx < MAX_SOCKET_COUNT; ++idx) {
-        slot.watch_events_[idx] = epoll::event::NONE;
-    }
+    slot.reset();
     change_epoll_used_state(id, false);
 }
 

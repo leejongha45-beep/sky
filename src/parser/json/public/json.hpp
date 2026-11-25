@@ -90,6 +90,7 @@ private:
     [[nodiscard]] static constexpr bool is_json_digit(char ch);
     [[nodiscard]] static constexpr bool is_hex_digit(char ch);
 
+    void reset();
     void make_flat();
     [[nodiscard]] token next_token(std::size_t& cursor) const;
     [[nodiscard]] bool is_token_end(std::size_t cursor) const;

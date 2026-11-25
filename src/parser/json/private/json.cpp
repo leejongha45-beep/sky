@@ -25,15 +25,19 @@ namespace sky::parser {
            ch == ':';
 }
 
+void json::reset() {
+    text_size_ = 0;
+    node_count_ = 0;
+    root_index_ = INVALID_NODE_INDEX;
+}
+
 [[nodiscard]] exret_t json::load(std::string_view path) {
     assert(path.data() != nullptr);
     assert(path.size() < PATH_MAX);
     assert(path.find('\0') == std::string_view::npos);
     assert(path.ends_with(".json"));
 
-    text_size_ = 0;
-    node_count_ = 0;
-    root_index_ = INVALID_NODE_INDEX;
+    reset();
 
     io::file_system& fs = io::file_system::get();
     std::int64_t file_id = INVALID_ID;
@@ -65,7 +69,7 @@ namespace sky::parser {
 
     std::size_t extra_bytes = 0;
     if (result == EXRET_SUCCESS && loaded_bytes == MAX_JSON_SOURCE_BYTES) {
-        std::byte extra_byte{};
+        std::byte extra_byte = {};
         result = fs.read_file(file_id, std::span<std::byte>{&extra_byte, 1},
                               extra_bytes);
     }
@@ -94,8 +98,7 @@ namespace sky::parser {
         result = static_cast<exret_t>(json_error::PARSE_FAIL);
     }
     if (result != EXRET_SUCCESS) {
-        text_size_ = 0;
-        node_count_ = 0;
+        reset();
         std::print(stderr,
                    "json::load: parse failed (path={}, flat_offset={}, "
                    "error_code={})\n",
@@ -526,7 +529,7 @@ void json::make_flat() {
             current = next_token(cursor);
         }
 
-        token key{};
+        token key = {};
         if (is_object == true) {
             if (current.type_ != token::type::STRING) {
                 return static_cast<exret_t>(json_error::PARSE_FAIL);

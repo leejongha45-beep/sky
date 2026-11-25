@@ -19,6 +19,17 @@
 
 namespace sky::io {
 
+void socket::reset() {
+    fd_ = -1;
+    state_ = state::CLOSED;
+    domain_ = domain::LOCAL;
+    type_ = type::STREAM;
+    protocol_ = protocol::DEFAULT;
+    options_ = option::NONE;
+    local_address_ = {};
+    peer_address_ = {};
+}
+
 [[nodiscard]] bool
 socket::address_matches_domain(const sockaddr* address,
                                socklen_t address_size) const {
@@ -80,7 +91,7 @@ socket::address_matches_domain(const sockaddr* address,
         return result;
     }
 
-    address peer{};
+    address peer = {};
     peer.size = sizeof(peer.storage);
     const int flags = static_cast<int>(options_);
     const int accepted_fd = ::accept4(
@@ -214,7 +225,7 @@ socket::address_matches_domain(const sockaddr* address,
     assert(sender.size == 0);
     assert(out_bytes == 0);
 
-    address source{};
+    address source = {};
     source.size = sizeof(source.storage);
     const ssize_t result =
         ::recvfrom(fd_, dst.data(), dst.size(), MSG_TRUNC,
@@ -308,7 +319,7 @@ socket::address_matches_domain(const sockaddr* address,
 }
 
 void socket::update_local_address() {
-    address local{};
+    address local = {};
     local.size = sizeof(local.storage);
     if (::getsockname(fd_, reinterpret_cast<sockaddr*>(&local.storage),
                       &local.size) == -1) {
@@ -321,7 +332,7 @@ void socket::update_local_address() {
 }
 
 void socket::update_peer_address() {
-    address peer{};
+    address peer = {};
     peer.size = sizeof(peer.storage);
     if (::getpeername(fd_, reinterpret_cast<sockaddr*>(&peer.storage),
                       &peer.size) == -1) {

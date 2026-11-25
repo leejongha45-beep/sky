@@ -22,6 +22,13 @@
 
 namespace sky::io {
 
+void file::reset() {
+    fd_ = -1;
+    open_flag_ = flag::READ_ONLY;
+    create_mode_ = mode::NONE;
+    path_[0] = '\0';
+}
+
 [[nodiscard]] file_system& file_system::get() {
     static file_system instance;
     return instance;
@@ -110,9 +117,9 @@ void file_system::change_file_used_state(std::int64_t id, bool is_use) {
     assert(is_use_id(id) == false);
     file& slot = files_[id];
     slot.fd_ = fd;
-    slot.open_flag = info.flag;
-    slot.create_mode = info.mode;
-    std::memcpy(&slot.path[0], terminated_path, length + 1);
+    slot.open_flag_ = info.flag;
+    slot.create_mode_ = info.mode;
+    std::memcpy(&slot.path_[0], terminated_path, length + 1);
     change_file_used_state(id, true);
     out_id = id;
 
@@ -166,10 +173,7 @@ void file_system::close_file(std::int64_t id) {
         std::perror("close");
     }
 
-    slot.fd_ = -1;
-    slot.open_flag = file::flag::READ_ONLY;
-    slot.create_mode = file::mode::NONE;
-    slot.path[0] = '\0';
+    slot.reset();
     change_file_used_state(id, false);
 }
 

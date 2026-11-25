@@ -17,3 +17,17 @@ Diagnostics:
   Includes:
     # glibc exposes these declarations through <poll.h> and <sys/socket.h>.
     IgnoreHeader: ['(^|/)sys/poll[.]h$', '(^|/)asm-generic/socket[.]h$']
+---
+If:
+  PathMatch: src/parallel/public/thread[.]hpp
+Diagnostics:
+  Includes:
+    # glibc exposes these types through <pthread.h> and <signal.h>.
+    IgnoreHeader: ['(^|/)bits/pthreadtypes[.]h$', '(^|/)bits/types/sigset_t[.]h$']
+---
+If:
+  PathMatch: src/parallel/private/thread[.]cpp
+Diagnostics:
+  Includes:
+    # glibc exposes these types through <sched.h> and <signal.h>.
+    IgnoreHeader: ['(^|/)bits/types/(struct_sched_param|sigset_t)[.]h$']

@@ -74,18 +74,20 @@ public:
     }
 
     struct open_info final {
-        std::string_view path;
-        file::flag flag;
-        file::mode mode;
+        std::string_view path = {};
+        file::flag flag = file::flag::READ_ONLY;
+        file::mode mode = file::mode::NONE;
     };
 
 private:
     friend class file_system;
 
+    void reset();
+
     int fd_ = -1;
-    flag open_flag = flag::READ_ONLY;
-    mode create_mode = mode::NONE;
-    container::array<char, PATH_MAX> path = {};
+    flag open_flag_ = flag::READ_ONLY;
+    mode create_mode_ = mode::NONE;
+    container::array<char, PATH_MAX> path_ = {};
 };
 
 class file_system final

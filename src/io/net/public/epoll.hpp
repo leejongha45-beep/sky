@@ -42,7 +42,7 @@ public:
     };
 
     struct create_info final {
-        epoll::flag flag;
+        epoll::flag flag = epoll::flag::NONE;
     };
 
     enum class event : std::uint32_t {
@@ -84,9 +84,12 @@ public:
 private:
     friend class socket_system;
 
+    void reset();
+    void reset_watch(std::size_t idx);
+
     static constexpr std::size_t MAX_WATCH_COUNT = 256;
 
-    int fd = -1;
+    int fd_ = -1;
     container::array<event, MAX_WATCH_COUNT> watch_events_ = {};
 };
 } // namespace sky::io

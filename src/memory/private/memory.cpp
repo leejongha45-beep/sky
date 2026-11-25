@@ -26,7 +26,7 @@ namespace sky::memory {
     void* base = ::mmap(nullptr, HEAP_PAGE_SIZE * pages, PROT_NONE,
                         MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
     if (base == MAP_FAILED) {
-        ::perror("mmap");
+        std::perror("mmap");
         return static_cast<exret_t>(memory_error::RESERVE_HEAP_FAIL);
     }
 
@@ -43,7 +43,7 @@ namespace sky::memory {
     const int result =
         ::mprotect(addr, HEAP_PAGE_SIZE * pages, PROT_READ | PROT_WRITE);
     if (result != 0) {
-        ::perror("mprotect");
+        std::perror("mprotect");
         return static_cast<exret_t>(memory_error::COMMIT_HEAP_FAIL);
     }
 
@@ -56,7 +56,7 @@ void virtual_memory_system::release_heap(std::byte*& base, std::size_t pages) {
 
     const int result = ::munmap(base, HEAP_PAGE_SIZE * pages);
     if (result != 0) {
-        ::perror("result");
+        std::perror("munmap");
     }
     base = nullptr;
 }
@@ -65,8 +65,8 @@ void virtual_memory_system::release_heap(std::byte*& base, std::size_t pages) {
 virtual_memory_system::get_free_id(std::int64_t& out_id) const {
     assert(out_id == INVALID_ID);
 
-    for (std::size_t word = 0; word < free_buffer_bitmap.get_size(); ++word) {
-        const std::uint64_t free_bits = ~free_buffer_bitmap[word];
+    for (std::size_t word = 0; word < free_buffer_bitmap_.get_size(); ++word) {
+        const std::uint64_t free_bits = ~free_buffer_bitmap_[word];
         if (free_bits != 0) {
             const std::size_t bit =
                 static_cast<std::size_t>(std::countr_zero(free_bits));
@@ -92,9 +92,9 @@ void virtual_memory_system::change_buffer_used_state(std::int64_t id,
     const std::uint64_t mask = std::uint64_t{1} << bit;
 
     if (is_use) {
-        free_buffer_bitmap[word] |= mask;
+        free_buffer_bitmap_[word] |= mask;
     } else {
-        free_buffer_bitmap[word] &= ~mask;
+        free_buffer_bitmap_[word] &= ~mask;
     }
 }
 
@@ -106,7 +106,7 @@ void virtual_memory_system::change_buffer_used_state(std::int64_t id,
     const std::size_t bit = index % BITMAP_WORD_BITS;
     const std::uint64_t mask = std::uint64_t{1} << bit;
 
-    const bool is_used = (free_buffer_bitmap[word] & mask) != 0;
+    const bool is_used = (free_buffer_bitmap_[word] & mask) != 0;
 
     assert(is_used == (heap_slots_[id].bytes.data() != nullptr));
 
@@ -163,6 +163,10 @@ void virtual_memory_system::change_buffer_used_state(std::int64_t id,
     return EXRET_SUCCESS;
 }
 
+void virtual_memory_system::reset_heap_slot(std::int64_t id) {
+    heap_slots_[id] = {};
+}
+
 void virtual_memory_system::destroy_heap_buffer(std::int64_t id) {
     assert(id >= 0 && id < MAX_HEAP_COUNT);
     assert(is_use_id(id) == true);
@@ -174,7 +178,7 @@ void virtual_memory_system::destroy_heap_buffer(std::int64_t id) {
     assert(pages > 0);
 
     release_heap(addr, pages);
-    heap_slots_[id] = heap_slot{};
+    reset_heap_slot(id);
 
     change_buffer_used_state(id, false);
 }

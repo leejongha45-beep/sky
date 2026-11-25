@@ -47,7 +47,7 @@ private:
     ~virtual_memory_system() = default;
 
     struct heap_slot final {
-        std::span<std::byte> bytes{};
+        std::span<std::byte> bytes = {};
         std::size_t reserved_pages = 0;
         std::size_t committed_pages = 0;
     };
@@ -55,6 +55,7 @@ private:
     [[nodiscard]] exret_t reserve_heap(std::byte*& out, std::size_t pages);
     [[nodiscard]] exret_t commit_heap(std::byte* addr, std::size_t pages);
     void release_heap(std::byte*& base, std::size_t pages);
+    void reset_heap_slot(std::int64_t id);
     [[nodiscard]] exret_t get_free_id(std::int64_t& out_id) const;
     void change_buffer_used_state(std::int64_t id, bool is_use);
     [[nodiscard]] bool is_use_id(std::int64_t id) const;
@@ -66,7 +67,7 @@ private:
     static constexpr std::size_t BITMAP_WORD_BITS = 64;
     static constexpr std::size_t BITMAP_WORD_COUNT =
         (MAX_HEAP_COUNT + BITMAP_WORD_BITS - 1) / BITMAP_WORD_BITS;
-    container::array<std::uint64_t, BITMAP_WORD_COUNT> free_buffer_bitmap = {};
+    container::array<std::uint64_t, BITMAP_WORD_COUNT> free_buffer_bitmap_ = {};
 };
 
 } // namespace sky::memory

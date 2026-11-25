@@ -72,14 +72,14 @@ public:
     };
 
     struct create_info final {
-        socket::domain domain;
-        socket::type type;
-        socket::protocol protocol;
-        socket::option options;
+        socket::domain domain = socket::domain::LOCAL;
+        socket::type type = socket::type::STREAM;
+        socket::protocol protocol = socket::protocol::DEFAULT;
+        socket::option options = socket::option::NONE;
     };
 
     struct address final {
-        sockaddr_storage storage{};
+        sockaddr_storage storage = {};
         socklen_t size = 0;
     };
 
@@ -119,6 +119,7 @@ private:
         CONNECT_FAILED,
     };
 
+    void reset();
     [[nodiscard]] bool address_matches_domain(const sockaddr* address,
                                               socklen_t address_size) const;
     void update_local_address();
@@ -132,8 +133,8 @@ private:
     type type_ = type::STREAM;
     protocol protocol_ = protocol::DEFAULT;
     option options_ = option::NONE;
-    address local_address_{};
-    address peer_address_{};
+    address local_address_ = {};
+    address peer_address_ = {};
 };
 
 } // namespace sky::io

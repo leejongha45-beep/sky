@@ -8,6 +8,7 @@ add_subdirectory(src/container)
 add_subdirectory(src/io/file)
 add_subdirectory(src/parser/json)
 add_subdirectory(src/io/net)
+add_subdirectory(src/parallel)
 
 add_executable(sky src/main.cpp)
 target_compile_features(sky PRIVATE cxx_std_23)
