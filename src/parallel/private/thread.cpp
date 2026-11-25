@@ -19,7 +19,7 @@
 namespace sky::parallel {
 
 exret_t thread::create_attribute() {
-    const int native_result = ::pthread_attr_init(&attrs_.native_attrs_);
+    const int native_result = ::pthread_attr_init(&attrs_.native_);
     if (native_result != 0) {
         std::print(stderr, "pthread_attr_init: {} (error_code={})\n",
                    std::strerror(native_result), native_result);
@@ -30,7 +30,7 @@ exret_t thread::create_attribute() {
 }
 
 void thread::destroy_attribute() {
-    const int native_result = ::pthread_attr_destroy(&attrs_.native_attrs_);
+    const int native_result = ::pthread_attr_destroy(&attrs_.native_);
     if (native_result != 0) {
         std::print(stderr, "pthread_attr_destroy: {} (error_code={})\n",
                    std::strerror(native_result), native_result);
@@ -79,7 +79,7 @@ void thread::attributes::reset() {
     detach_ = detach_state::JOINABLE;
     scheduling_ = {};
     signal_source_ = signal_mask_source::INHERIT;
-    native_attrs_ = {};
+    native_ = {};
     cpu_mask_ = {};
     blocked_signal_mask_ = {};
 }
@@ -90,7 +90,7 @@ exret_t thread::attributes::apply(const create_info& requested) {
            requested.detach == detach_state::DETACHED);
 
     const int native_result = ::pthread_attr_setdetachstate(
-        &native_attrs_, static_cast<int>(requested.detach));
+        &native_, static_cast<int>(requested.detach));
     if (native_result != 0) {
         std::print(stderr, "pthread_attr_setdetachstate: {} (error_code={})\n",
                    std::strerror(native_result), native_result);
@@ -113,9 +113,8 @@ exret_t thread::attributes::apply(const create_info& requested) {
 
 exret_t thread::attributes::apply_stack_attributes(const stack& requested) {
     if (!requested.buffer.empty()) {
-        const int native_result =
-            ::pthread_attr_setstack(&native_attrs_, requested.buffer.data(),
-                                    requested.buffer.size_bytes());
+        const int native_result = ::pthread_attr_setstack(
+            &native_, requested.buffer.data(), requested.buffer.size_bytes());
         if (native_result != 0) {
             std::print(stderr, "pthread_attr_setstack: {} (error_code={})\n",
                        std::strerror(native_result), native_result);
@@ -128,7 +127,7 @@ exret_t thread::attributes::apply_stack_attributes(const stack& requested) {
 
     if (requested.size != DEFAULT_STACK_SIZE) {
         const int native_result =
-            ::pthread_attr_setstacksize(&native_attrs_, requested.size);
+            ::pthread_attr_setstacksize(&native_, requested.size);
         if (native_result != 0) {
             std::print(stderr,
                        "pthread_attr_setstacksize: {} (error_code={})\n",
@@ -139,7 +138,7 @@ exret_t thread::attributes::apply_stack_attributes(const stack& requested) {
     }
     if (requested.guard != DEFAULT_GUARD_SIZE) {
         const int native_result =
-            ::pthread_attr_setguardsize(&native_attrs_, requested.guard);
+            ::pthread_attr_setguardsize(&native_, requested.guard);
         if (native_result != 0) {
             std::print(stderr,
                        "pthread_attr_setguardsize: {} (error_code={})\n",
@@ -154,8 +153,7 @@ exret_t thread::attributes::apply_stack_attributes(const stack& requested) {
 
 exret_t
 thread::attributes::apply_scheduling_attributes(const scheduling& requested) {
-    int native_result =
-        ::pthread_attr_setscope(&native_attrs_, PTHREAD_SCOPE_SYSTEM);
+    int native_result = ::pthread_attr_setscope(&native_, PTHREAD_SCOPE_SYSTEM);
     if (native_result != 0) {
         std::print(stderr, "pthread_attr_setscope: {} (error_code={})\n",
                    std::strerror(native_result), native_result);
@@ -178,7 +176,7 @@ thread::attributes::apply_scheduling_attributes(const scheduling& requested) {
         break;
     }
 
-    native_result = ::pthread_attr_setschedpolicy(&native_attrs_, policy);
+    native_result = ::pthread_attr_setschedpolicy(&native_, policy);
     if (native_result != 0) {
         std::print(stderr, "pthread_attr_setschedpolicy: {} (error_code={})\n",
                    std::strerror(native_result), native_result);
@@ -188,7 +186,7 @@ thread::attributes::apply_scheduling_attributes(const scheduling& requested) {
     // NOLINTNEXTLINE(misc-include-cleaner)
     sched_param parameters = {};
     parameters.sched_priority = requested.priority;
-    native_result = ::pthread_attr_setschedparam(&native_attrs_, &parameters);
+    native_result = ::pthread_attr_setschedparam(&native_, &parameters);
     if (native_result != 0) {
         std::print(stderr, "pthread_attr_setschedparam: {} (error_code={})\n",
                    std::strerror(native_result), native_result);
@@ -196,7 +194,7 @@ thread::attributes::apply_scheduling_attributes(const scheduling& requested) {
     }
 
     native_result =
-        ::pthread_attr_setinheritsched(&native_attrs_, PTHREAD_EXPLICIT_SCHED);
+        ::pthread_attr_setinheritsched(&native_, PTHREAD_EXPLICIT_SCHED);
     if (native_result != 0) {
         std::print(stderr, "pthread_attr_setinheritsched: {} (error_code={})\n",
                    std::strerror(native_result), native_result);
@@ -226,8 +224,8 @@ thread::attributes::apply_cpu_affinity(std::span<const std::size_t> affinity) {
         CPU_SET(cpu, &cpu_mask);
     }
 
-    const int native_result = ::pthread_attr_setaffinity_np(
-        &native_attrs_, sizeof(cpu_mask), &cpu_mask);
+    const int native_result =
+        ::pthread_attr_setaffinity_np(&native_, sizeof(cpu_mask), &cpu_mask);
     if (native_result != 0) {
         std::print(stderr, "pthread_attr_setaffinity_np: {} (error_code={})\n",
                    std::strerror(native_result), native_result);
@@ -261,7 +259,7 @@ exret_t thread::attributes::apply_signal_mask(const signal_mask& requested) {
         }
     }
     const int native_result =
-        ::pthread_attr_setsigmask_np(&native_attrs_, &blocked_signal_mask);
+        ::pthread_attr_setsigmask_np(&native_, &blocked_signal_mask);
     if (native_result != 0) {
         std::print(stderr, "pthread_attr_setsigmask_np: {} (error_code={})\n",
                    std::strerror(native_result), native_result);

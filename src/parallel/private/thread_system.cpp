@@ -80,7 +80,7 @@ thread_system::create_thread(const thread::create_info& info,
     result = slot.attrs_.apply(info);
     if (result == EXRET_SUCCESS) {
         const int native_result = ::pthread_create(
-            &slot.handle_, &slot.attrs_.native_attrs_, task.run, task.arg);
+            &slot.handle_, &slot.attrs_.native_, task.run, task.arg);
         if (native_result != 0) {
             std::print(stderr, "pthread_create: {} (error_code={})\n",
                        std::strerror(native_result), native_result);

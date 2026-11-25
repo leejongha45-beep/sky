@@ -31,3 +31,10 @@ Diagnostics:
   Includes:
     # glibc exposes these types through <sched.h> and <signal.h>.
     IgnoreHeader: ['(^|/)bits/types/(struct_sched_param|sigset_t)[.]h$']
+---
+If:
+  PathMatch: src/parallel/public/mutex[.]hpp
+Diagnostics:
+  Includes:
+    # glibc exposes pthread_mutex_t through <pthread.h>.
+    IgnoreHeader: ['(^|/)bits/pthreadtypes[.]h$']

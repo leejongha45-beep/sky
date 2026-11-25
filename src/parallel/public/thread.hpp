@@ -117,7 +117,7 @@ public:
         signal_mask_source signal_source_ = signal_mask_source::INHERIT;
 
         // NOLINTNEXTLINE(misc-include-cleaner)
-        pthread_attr_t native_attrs_ = {};
+        pthread_attr_t native_ = {};
         cpu_set_t cpu_mask_ = {};
         // NOLINTNEXTLINE(misc-include-cleaner)
         sigset_t blocked_signal_mask_ = {};
