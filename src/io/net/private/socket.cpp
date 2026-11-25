@@ -45,8 +45,9 @@ socket::address_matches_domain(const sockaddr* address,
 [[nodiscard]] exret_t socket::bind(const sockaddr* address,
                                    socklen_t address_size) {
     assert(fd_ >= 0);
-    assert(state_ == state::CREATED);
-    assert(address_matches_domain(address, address_size));
+    assert(state_ == state::CREATED && "bind requires a newly created socket");
+    assert(address_matches_domain(address, address_size) &&
+           "address must supply a family matching the socket domain");
 
     if (::bind(fd_, address, address_size) == -1) {
         std::perror("bind");
@@ -60,9 +61,10 @@ socket::address_matches_domain(const sockaddr* address,
 
 [[nodiscard]] exret_t socket::listen(int backlog) {
     assert(fd_ >= 0);
-    assert(type_ == type::STREAM);
-    assert(state_ == state::BOUND || state_ == state::LISTENING ||
-           (state_ == state::CREATED && domain_ != domain::LOCAL));
+    assert(type_ == type::STREAM && "listen requires a stream socket");
+    assert((state_ == state::BOUND || state_ == state::LISTENING ||
+            (state_ == state::CREATED && domain_ != domain::LOCAL)) &&
+           "listen requires a bound or listening socket or a new IP socket");
     assert(backlog >= 0);
 
     if (::listen(fd_, backlog) == -1) {
@@ -77,7 +79,7 @@ socket::address_matches_domain(const sockaddr* address,
 
 [[nodiscard]] exret_t socket::accept(id& out_id) const {
     assert(fd_ >= 0);
-    assert(state_ == state::LISTENING);
+    assert(state_ == state::LISTENING && "accept requires a listening socket");
     assert(out_id == id::INVALID);
 
     socket_system& system = socket_system::get();
@@ -122,9 +124,12 @@ socket::address_matches_domain(const sockaddr* address,
 [[nodiscard]] exret_t socket::connect(const sockaddr* address,
                                       socklen_t address_size) {
     assert(fd_ >= 0);
-    assert(state_ == state::CREATED || state_ == state::BOUND ||
-           (state_ == state::CONNECTED && type_ == type::DATAGRAM));
-    assert(address_matches_domain(address, address_size));
+    assert((state_ == state::CREATED || state_ == state::BOUND ||
+            (state_ == state::CONNECTED && type_ == type::DATAGRAM)) &&
+           "connect requires a new or bound socket or a connected datagram "
+           "socket");
+    assert(address_matches_domain(address, address_size) &&
+           "address must supply a family matching the socket domain");
 
     if (::connect(fd_, address, address_size) == 0) {
         state_ = state::CONNECTED;
@@ -150,7 +155,8 @@ socket::address_matches_domain(const sockaddr* address,
 
 [[nodiscard]] exret_t socket::finish_connect() {
     assert(fd_ >= 0);
-    assert(state_ == state::CONNECTING);
+    assert(state_ == state::CONNECTING &&
+           "finish_connect requires a pending connection attempt");
 
     pollfd pending{
         .fd = fd_,
@@ -190,11 +196,14 @@ socket::address_matches_domain(const sockaddr* address,
 [[nodiscard]] exret_t socket::recv(std::span<std::byte> dst,
                                    std::size_t& out_bytes) const {
     assert(fd_ >= 0);
-    assert(state_ == state::CONNECTED ||
-           (type_ == type::DATAGRAM &&
-            (state_ == state::CREATED || state_ == state::BOUND)));
+    assert(
+        (state_ == state::CONNECTED ||
+         (type_ == type::DATAGRAM &&
+          (state_ == state::CREATED || state_ == state::BOUND))) &&
+        "recv requires a connected socket or a new or bound datagram socket");
     assert(dst.data() != nullptr || dst.empty());
-    assert(type_ != type::STREAM || !dst.empty());
+    assert((type_ != type::STREAM || !dst.empty()) &&
+           "stream recv requires a nonempty buffer to detect EOF");
     assert(out_bytes == 0);
 
     const int flags = type_ == type::DATAGRAM ? MSG_TRUNC : 0;
@@ -218,11 +227,13 @@ socket::address_matches_domain(const sockaddr* address,
                                         address& sender,
                                         std::size_t& out_bytes) const {
     assert(fd_ >= 0);
-    assert(type_ == type::DATAGRAM);
-    assert(state_ == state::CREATED || state_ == state::BOUND ||
-           state_ == state::CONNECTED);
+    assert(type_ == type::DATAGRAM && "recv_from requires a datagram socket");
+    assert((state_ == state::CREATED || state_ == state::BOUND ||
+            state_ == state::CONNECTED) &&
+           "recv_from requires a created, bound, or connected socket");
     assert(dst.data() != nullptr || dst.empty());
-    assert(sender.size == 0);
+    assert(sender.size == 0 &&
+           "recv_from requires an empty sender address output");
     assert(out_bytes == 0);
 
     address source = {};
@@ -249,7 +260,7 @@ socket::address_matches_domain(const sockaddr* address,
 [[nodiscard]] exret_t socket::send(std::span<const std::byte> src,
                                    std::size_t& out_bytes) const {
     assert(fd_ >= 0);
-    assert(state_ == state::CONNECTED);
+    assert(state_ == state::CONNECTED && "send requires a connected socket");
     assert(src.data() != nullptr || src.empty());
     assert(out_bytes == 0);
 
@@ -267,15 +278,18 @@ socket::address_matches_domain(const sockaddr* address,
                                       const address& destination,
                                       std::size_t& out_bytes) {
     assert(fd_ >= 0);
-    assert(type_ == type::DATAGRAM);
-    assert(state_ == state::CREATED || state_ == state::BOUND ||
-           state_ == state::CONNECTED);
+    assert(type_ == type::DATAGRAM && "send_to requires a datagram socket");
+    assert((state_ == state::CREATED || state_ == state::BOUND ||
+            state_ == state::CONNECTED) &&
+           "send_to requires a created, bound, or connected socket");
     assert(src.data() != nullptr || src.empty());
     assert(out_bytes == 0);
-    assert(destination.size <= sizeof(destination.storage));
+    assert(destination.size <= sizeof(destination.storage) &&
+           "destination address length must fit its storage");
     const sockaddr* const target =
         reinterpret_cast<const sockaddr*>(&destination.storage);
-    assert(address_matches_domain(target, destination.size));
+    assert(address_matches_domain(target, destination.size) &&
+           "address must supply a family matching the socket domain");
 
     const ssize_t result = ::sendto(fd_, src.data(), src.size(), MSG_NOSIGNAL,
                                     target, destination.size);
@@ -314,7 +328,8 @@ socket::address_matches_domain(const sockaddr* address,
 }
 
 [[nodiscard]] const socket::address& socket::get_peer_address() const& {
-    assert(has_peer_address());
+    assert(has_peer_address() &&
+           "check has_peer_address() before get_peer_address()");
     return *peer_address_;
 }
 

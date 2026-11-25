@@ -9,6 +9,8 @@ namespace sky::parallel {
 
 enum class mutex_error : exret_t {
     INITIALIZE_MUTEX_FAIL = 600,
+    LOCK_MUTEX_FAIL = 601,
+    LOCK_BUSY = 602,
 };
 
 class mutex final
@@ -52,6 +54,10 @@ public:
     };
 
     [[nodiscard]] exret_t initialize(const attributes::init_info& info);
+    [[nodiscard]] exret_t lock();
+    [[nodiscard]] exret_t lock_nowait();
+    void unlock();
+    void destroy();
 
 private:
     [[nodiscard]] exret_t create_attribute();

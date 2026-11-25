@@ -2,6 +2,7 @@
 
 #include <bit>
 #include <cassert>
+#include <cerrno>
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
@@ -56,7 +57,10 @@ void virtual_memory_system::release_heap(std::byte*& base, std::size_t pages) {
 
     const int result = ::munmap(base, HEAP_PAGE_SIZE * pages);
     if (result != 0) {
+        [[maybe_unused]] const int native_error = errno;
         std::perror("munmap");
+        assert(native_error != EINVAL &&
+               "munmap requires the recorded reservation base and page count");
     }
     base = nullptr;
 }
@@ -108,7 +112,8 @@ void virtual_memory_system::change_buffer_used_state(std::int64_t id,
 
     const bool is_used = (free_buffer_bitmap_[word] & mask) != 0;
 
-    assert(is_used == (heap_slots_[id].bytes.data() != nullptr));
+    assert(is_used == (heap_slots_[id].bytes.data() != nullptr) &&
+           "heap slot bitmap and backing span address must agree");
 
     return is_used;
 }
@@ -117,7 +122,8 @@ void virtual_memory_system::change_buffer_used_state(std::int64_t id,
     const virtual_memory_create_info& info, std::int64_t& out_id) {
     assert(out_id == INVALID_ID);
     assert(info.commit_pages > 0);
-    assert(info.reserve_pages >= info.commit_pages);
+    assert(info.reserve_pages >= info.commit_pages &&
+           "initial commit must fit within the reservation");
 
     exret_t result = EXRET_SUCCESS;
 
@@ -189,7 +195,8 @@ virtual_memory_system::resize_heap_buffer(std::int64_t id,
     assert(is_use_id(id) == true);
 
     heap_slot& slot = heap_slots_[id];
-    assert(new_pages <= slot.reserved_pages);
+    assert(new_pages <= slot.reserved_pages &&
+           "heap size must fit within the reserved page count");
 
     if (new_pages > slot.committed_pages) {
         std::byte* addr =

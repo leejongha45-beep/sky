@@ -19,7 +19,8 @@
 namespace sky::parallel {
 
 exret_t thread::create_attribute() {
-    assert(attrs_.native_.has_value() == false);
+    assert(attrs_.native_.has_value() == false &&
+           "create_attribute requires empty native attribute storage");
 
     const int native_result = ::pthread_attr_init(&attrs_.native_.emplace());
     if (native_result != 0) {
@@ -40,6 +41,8 @@ void thread::destroy_attribute() {
     if (native_result != 0) {
         std::print(stderr, "pthread_attr_destroy: {} (error_code={})\n",
                    std::strerror(native_result), native_result);
+        assert(false &&
+               "destroy_attribute requires initialized pthread attributes");
     }
 }
 
@@ -50,7 +53,8 @@ void thread::reset() {
 
 void thread::join(id thread_id, void*& out_result) {
     assert(attrs_.detach_ == attributes::detach_state::JOINABLE);
-    assert(::pthread_equal(handle_, ::pthread_self()) == 0);
+    assert(::pthread_equal(handle_, ::pthread_self()) == 0 &&
+           "the join target must differ from the calling thread");
 
     void* result = nullptr;
     const int native_result = ::pthread_join(handle_, &result);
@@ -63,6 +67,8 @@ void thread::join(id thread_id, void*& out_result) {
         std::print(stderr, "pthread_join: {} (id={}, error_code={})\n",
                    std::strerror(native_result),
                    static_cast<std::int64_t>(thread_id), native_result);
+        assert(false && "join requires a valid joinable handle, one joiner, "
+                        "and no join cycle");
     }
 }
 
@@ -77,11 +83,13 @@ void thread::detach(id thread_id) {
         std::print(stderr, "pthread_detach: {} (id={}, error_code={})\n",
                    std::strerror(native_result),
                    static_cast<std::int64_t>(thread_id), native_result);
+        assert(false && "detach requires a valid joinable thread handle");
     }
 }
 
 void thread::attributes::reset() {
-    assert(native_.has_value() == false);
+    assert(native_.has_value() == false &&
+           "native thread attributes must be released before reset");
 
     stack_ = {};
     detach_ = detach_state::JOINABLE;
@@ -92,7 +100,8 @@ void thread::attributes::reset() {
 }
 
 exret_t thread::attributes::apply(const create_info& info) {
-    assert(native_.has_value() == true);
+    assert(native_.has_value() == true &&
+           "apply requires initialized pthread attributes");
     assert(info.scheduling.scope == contention_scope::SYSTEM);
     assert(info.detach == detach_state::JOINABLE ||
            info.detach == detach_state::DETACHED);

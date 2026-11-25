@@ -46,7 +46,8 @@ private:
     void change_epoll_used_state(epoll::id id, bool is_use);
 
     static constexpr std::size_t MAX_SOCKET_COUNT = 256;
-    static_assert(MAX_SOCKET_COUNT == epoll::MAX_WATCH_COUNT);
+    static_assert(MAX_SOCKET_COUNT == epoll::MAX_WATCH_COUNT,
+                  "epoll requires one watch slot per socket id");
     static constexpr std::size_t BITMAP_WORD_BITS = 64;
     static constexpr std::size_t BITMAP_WORD_COUNT =
         (MAX_SOCKET_COUNT + BITMAP_WORD_BITS - 1) / BITMAP_WORD_BITS;
@@ -55,7 +56,8 @@ private:
     container::array<std::uint64_t, BITMAP_WORD_COUNT> used_socket_bitmap_ = {};
 
     static constexpr std::size_t MAX_EPOLL_COUNT = 16;
-    static_assert(MAX_EPOLL_COUNT <= BITMAP_WORD_BITS);
+    static_assert(MAX_EPOLL_COUNT <= BITMAP_WORD_BITS,
+                  "epoll slots must fit in one bitmap word");
     container::array<epoll, MAX_EPOLL_COUNT> epolls_ = {};
     std::uint64_t used_epoll_bitmap_ = 0;
 };

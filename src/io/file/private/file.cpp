@@ -6,6 +6,7 @@
 
 #include <bit>
 #include <cassert>
+#include <cerrno>
 #include <climits> // IWYU pragma: keep
 #include <cstddef>
 #include <cstdint>
@@ -66,7 +67,8 @@ void file::reset() {
     const std::uint64_t mask = std::uint64_t{1} << bit;
     const bool is_used = (used_file_bitmap_[word] & mask) != 0;
 
-    assert(is_used == true ? files_[id].fd_ >= 0 : files_[id].fd_ == -1);
+    assert((is_used == true ? files_[id].fd_ >= 0 : files_[id].fd_ == -1) &&
+           "file slot bitmap and descriptor state must agree");
     return is_used;
 }
 
@@ -89,8 +91,10 @@ void file_system::change_file_used_state(std::int64_t id, bool is_use) {
                                              std::int64_t& out_id) {
     const std::string_view path = info.path;
     assert(path.data() != nullptr);
-    assert(path.size() < PATH_MAX);
-    assert(path.find('\0') == std::string_view::npos);
+    assert(path.size() < PATH_MAX &&
+           "path must leave one byte for the NUL terminator");
+    assert(path.find('\0') == std::string_view::npos &&
+           "path view must contain no NUL bytes");
     assert(out_id == INVALID_ID);
 
     std::int64_t id = INVALID_ID;
@@ -170,7 +174,10 @@ void file_system::close_file(std::int64_t id) {
     file& slot = files_[id];
     const int result = ::close(slot.fd_);
     if (result == -1) {
+        [[maybe_unused]] const int native_error = errno;
         std::perror("close");
+        assert(native_error != EBADF &&
+               "managed descriptor must remain open until system cleanup");
     }
 
     slot.reset();

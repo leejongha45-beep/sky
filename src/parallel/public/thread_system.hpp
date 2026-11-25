@@ -34,7 +34,8 @@ private:
     void change_thread_used_state(thread::id id, bool is_use);
 
     static constexpr std::size_t MAX_THREAD_COUNT = 32;
-    static_assert(MAX_THREAD_COUNT <= 64);
+    static_assert(MAX_THREAD_COUNT <= 64,
+                  "thread slots must fit in the 64-bit bitmap");
 
     container::array<thread, MAX_THREAD_COUNT> threads_ = {};
     std::uint64_t used_thread_bitmap_ = 0;

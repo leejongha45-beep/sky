@@ -2,8 +2,11 @@
 
 #include <cassert>
 #include <cstddef>
-#include <cstdint>
 #include <span>
+
+#ifndef NDEBUG
+#include <cstdint>
+#endif
 
 #include "types.hpp"
 
@@ -28,8 +31,9 @@ void bump_allocator::initialize(const init_info& info) {
     const std::span<std::byte>& bytes = info.memory;
     assert(bytes.data() != nullptr);
     assert(bytes.size() > 0);
-    assert(info.align == ALIGN_ANY ||
-           reinterpret_cast<std::uintptr_t>(bytes.data()) % info.align == 0);
+    assert((info.align == ALIGN_ANY ||
+            reinterpret_cast<std::uintptr_t>(bytes.data()) % info.align == 0) &&
+           "allocator base address must meet the requested alignment");
 
     memory_ = &bytes;
     offset_ = 0;
@@ -64,7 +68,8 @@ void bump_allocator::free(std::size_t size) {
     assert(memory_->data() != nullptr);
 
     const std::size_t padding = calc_padding(size);
-    assert(size <= offset_ && padding <= offset_ - size);
+    assert(size <= offset_ && padding <= offset_ - size &&
+           "size and padding must fit in the used range");
     offset_ -= size + padding;
 }
 } // namespace sky::memory

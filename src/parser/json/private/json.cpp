@@ -33,9 +33,12 @@ void json::reset() {
 
 [[nodiscard]] exret_t json::load(std::string_view path) {
     assert(path.data() != nullptr);
-    assert(path.size() < PATH_MAX);
-    assert(path.find('\0') == std::string_view::npos);
-    assert(path.ends_with(".json"));
+    assert(path.size() < PATH_MAX &&
+           "path must leave one byte for the NUL terminator");
+    assert(path.find('\0') == std::string_view::npos &&
+           "path view must contain no NUL bytes");
+    assert(path.ends_with(".json") &&
+           "load requires a lowercase .json extension");
 
     reset();
 
@@ -123,7 +126,8 @@ void json::reset() {
 [[nodiscard]] std::string_view json::get_node_text(std::size_t index) const& {
     const node& value = get_node(index);
     assert(value.offset < text_size_ &&
-           value.length <= text_size_ - value.offset);
+           value.length <= text_size_ - value.offset &&
+           "node text must lie within the flattened source");
     return {&text_[value.offset], value.length};
 }
 
@@ -133,7 +137,8 @@ void json::reset() {
         return {};
     }
     assert(value.key_offset < text_size_ &&
-           value.key_length <= text_size_ - value.key_offset);
+           value.key_length <= text_size_ - value.key_offset &&
+           "key text must lie within the flattened source");
     return {&text_[value.key_offset], value.key_length};
 }
 
@@ -146,7 +151,8 @@ void json::make_flat() {
     bool escaped = false;
 
     while (input_index < text_size_) {
-        assert(output_index <= input_index);
+        assert(output_index <= input_index &&
+               "flattening must preserve unread source bytes");
 
         const char ch = text_[input_index];
 
@@ -435,7 +441,8 @@ void json::make_flat() {
                                         std::size_t& out_index) {
     assert(out_index == INVALID_NODE_INDEX);
     assert(current.offset <= cursor && cursor <= text_size_ &&
-           current.length == cursor - current.offset);
+           current.length == cursor - current.offset &&
+           "token text must end at the scanner cursor within the source");
     node::type type = node::type::NULL_VALUE;
     switch (current.type_) {
     case token::type::OBJECT_OPEN:
@@ -488,7 +495,8 @@ void json::make_flat() {
     if (root_result != EXRET_SUCCESS) {
         return root_result;
     }
-    assert(root_index < node_count_);
+    assert(root_index < node_count_ &&
+           "root index must refer to a parsed node");
     if (is_container(nodes_[root_index].type_) == false) {
         out_index = root_index;
         return EXRET_SUCCESS;
@@ -505,17 +513,22 @@ void json::make_flat() {
 
     while (depth != 0) {
         parse_frame& frame = frames[depth - 1];
-        assert(frame.parent_index < node_count_);
+        assert(frame.parent_index < node_count_ &&
+               "parse frame parent must refer to a parsed node");
         node& parent = nodes_[frame.parent_index];
-        assert(is_container(parent.type_) == true);
+        assert(is_container(parent.type_) == true &&
+               "parse frame parent must be an object or array");
 
         const bool is_object = parent.type_ == node::type::OBJECT;
         const token::type end =
             is_object ? token::type::OBJECT_CLOSE : token::type::ARRAY_CLOSE;
         if (current.type_ == end) {
             assert(parent.offset < current.offset &&
-                   current.offset < text_size_);
-            assert(current.length == 1);
+                   current.offset < text_size_ &&
+                   "closing token must follow its opening token within the "
+                   "source");
+            assert(current.length == 1 &&
+                   "array and object closing tokens must occupy one byte");
             parent.length = current.offset + current.length - parent.offset;
             current = next_token(cursor);
             --depth;
@@ -548,7 +561,8 @@ void json::make_flat() {
             return result;
         }
 
-        assert(frame.parent_index < child_index && child_index < node_count_);
+        assert(frame.parent_index < child_index && child_index < node_count_ &&
+               "child must be a parsed node created after its parent");
         node& child = nodes_[child_index];
         if (is_object == true) {
             child.key_offset = key.offset;
@@ -557,15 +571,18 @@ void json::make_flat() {
         if (frame.prev_child_index == INVALID_NODE_INDEX) {
             parent.first_child = child_index;
         } else {
-            assert(frame.prev_child_index < child_index);
+            assert(frame.prev_child_index < child_index &&
+                   "previous sibling must precede the new child in node order");
             assert(nodes_[frame.prev_child_index].next_sibling ==
-                   INVALID_NODE_INDEX);
+                       INVALID_NODE_INDEX &&
+                   "previous child must have an empty next-sibling link");
             nodes_[frame.prev_child_index].next_sibling = child_index;
         }
         frame.prev_child_index = child_index;
 
         if (is_container(child.type_) == true) {
-            assert(depth < frames.get_size());
+            assert(depth < frames.get_size() &&
+                   "container frame must fit after the nesting limit check");
             frames[depth] = {.parent_index = child_index};
             ++depth;
         }

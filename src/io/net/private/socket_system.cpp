@@ -2,6 +2,7 @@
 
 #include <bit>
 #include <cassert>
+#include <cerrno>
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
@@ -56,8 +57,11 @@ socket_system::get_free_socket_id(socket::id& out_id) const {
     const std::uint64_t mask = std::uint64_t{1} << bit;
     const bool is_used = (used_socket_bitmap_[word] & mask) != 0;
 
-    assert(is_used == true ? sockets_[idx].fd_ >= 0 : sockets_[idx].fd_ == -1);
-    assert(is_used == (sockets_[idx].state_ != socket::state::CLOSED));
+    assert(
+        (is_used == true ? sockets_[idx].fd_ >= 0 : sockets_[idx].fd_ == -1) &&
+        "socket slot bitmap and descriptor state must agree");
+    assert(is_used == (sockets_[idx].state_ != socket::state::CLOSED) &&
+           "socket slot bitmap and lifecycle state must agree");
     return is_used;
 }
 
@@ -135,7 +139,10 @@ void socket_system::destroy_socket(socket::id id) {
     socket& slot = sockets_[socket_idx];
     const int result = ::close(slot.fd_);
     if (result == -1) {
+        [[maybe_unused]] const int native_error = errno;
         std::perror("close");
+        assert(native_error != EBADF &&
+               "managed descriptor must remain open until system cleanup");
     }
 
     slot.reset();
@@ -169,8 +176,9 @@ socket_system::get_free_epoll_id(epoll::id& out_id) const {
     const std::uint64_t mask = std::uint64_t{1} << index;
     const bool is_used = (used_epoll_bitmap_ & mask) != 0;
 
-    assert(is_used == true ? epolls_[index].fd_ >= 0
-                           : epolls_[index].fd_ == -1);
+    assert((is_used == true ? epolls_[index].fd_ >= 0
+                            : epolls_[index].fd_ == -1) &&
+           "epoll slot bitmap and descriptor state must agree");
     return is_used;
 }
 
@@ -220,7 +228,10 @@ void socket_system::destroy_epoll(epoll::id id) {
 
     epoll& slot = epolls_[static_cast<std::int64_t>(id)];
     if (::close(slot.fd_) == -1) {
+        [[maybe_unused]] const int native_error = errno;
         std::perror("close");
+        assert(native_error != EBADF &&
+               "managed descriptor must remain open until system cleanup");
     }
 
     slot.reset();

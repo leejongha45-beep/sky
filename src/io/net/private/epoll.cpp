@@ -7,9 +7,12 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
-#include <limits>
 #include <span>
 #include <sys/epoll.h>
+
+#ifndef NDEBUG
+#include <limits>
+#endif
 
 #include "socket.hpp"
 #include "socket_system.hpp"
@@ -31,7 +34,7 @@ void epoll::reset_watch(std::size_t idx) {
 [[nodiscard]] exret_t epoll::watch(socket::id socket_id, event events) {
     assert(fd_ >= 0);
     assert(socket_id != socket::id::INVALID);
-    assert(events != event::NONE);
+    assert(events != event::NONE && "watch requires a nonzero event mask");
     const int target_fd = socket_system::get().get_socket(socket_id).get_fd();
     assert(target_fd != fd_);
 
@@ -50,7 +53,8 @@ void epoll::reset_watch(std::size_t idx) {
 [[nodiscard]] exret_t epoll::update_watch(socket::id socket_id, event events) {
     assert(fd_ >= 0);
     assert(socket_id != socket::id::INVALID);
-    assert(events != event::NONE);
+    assert(events != event::NONE &&
+           "use unwatch() to remove an existing watch");
     const int target_fd = socket_system::get().get_socket(socket_id).get_fd();
     assert(target_fd != fd_);
 
@@ -71,12 +75,19 @@ void epoll::unwatch(socket::id socket_id) {
     assert(socket_id != socket::id::INVALID);
     const int target_fd = socket_system::get().get_socket(socket_id).get_fd();
     assert(target_fd != fd_);
+    const std::size_t socket_idx = static_cast<std::size_t>(socket_id);
+    assert(watch_events_[socket_idx] != event::NONE &&
+           "unwatch requires the socket to be registered");
 
     if (::epoll_ctl(fd_, EPOLL_CTL_DEL, target_fd, nullptr) == -1) {
+        [[maybe_unused]] const int native_error = errno;
         std::perror("epoll_ctl");
+        assert(
+            native_error != EBADF && native_error != ENOENT &&
+            "unwatch requires valid descriptors and a matching kernel watch");
     }
 
-    reset_watch(static_cast<std::size_t>(socket_id));
+    reset_watch(socket_idx);
 }
 
 [[nodiscard]] exret_t epoll::wait(std::span<ready_event> events, int timeout_ms,
@@ -84,9 +95,11 @@ void epoll::unwatch(socket::id socket_id) {
     assert(fd_ >= 0);
     assert(!events.empty());
     assert(events.size() <=
-           static_cast<std::size_t>(std::numeric_limits<int>::max()) /
-               sizeof(epoll_event));
-    assert(timeout_ms >= -1);
+               static_cast<std::size_t>(std::numeric_limits<int>::max()) /
+                   sizeof(epoll_event) &&
+           "event span must fit the epoll wait capacity limit");
+    assert(timeout_ms >= -1 &&
+           "wait timeout must be -1 or nonnegative milliseconds");
     assert(out_count == 0);
 
     std::array<epoll_event, socket_system::MAX_SOCKET_COUNT> native_events;
