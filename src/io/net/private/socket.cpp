@@ -27,7 +27,7 @@ void socket::reset() {
     protocol_ = protocol::DEFAULT;
     options_ = option::NONE;
     local_address_ = {};
-    peer_address_ = {};
+    peer_address_.reset();
 }
 
 [[nodiscard]] bool
@@ -135,7 +135,7 @@ socket::address_matches_domain(const sockaddr* address,
 
     if (errno == EINPROGRESS) {
         state_ = state::CONNECTING;
-        peer_address_ = {};
+        peer_address_.reset();
         return static_cast<exret_t>(socket_error::CONNECT_IN_PROGRESS);
     }
     if (errno == EAGAIN && domain_ == domain::LOCAL) {
@@ -144,7 +144,7 @@ socket::address_matches_domain(const sockaddr* address,
 
     std::perror("connect");
     state_ = state::CONNECT_FAILED;
-    peer_address_ = {};
+    peer_address_.reset();
     return static_cast<exret_t>(socket_error::CONNECT_SOCKET_FAIL);
 }
 
@@ -310,12 +310,12 @@ socket::address_matches_domain(const sockaddr* address,
 }
 
 [[nodiscard]] bool socket::has_peer_address() const {
-    return peer_address_.size > 0;
+    return peer_address_.has_value();
 }
 
 [[nodiscard]] const socket::address& socket::get_peer_address() const& {
     assert(has_peer_address());
-    return peer_address_;
+    return *peer_address_;
 }
 
 void socket::update_local_address() {
@@ -337,7 +337,7 @@ void socket::update_peer_address() {
     if (::getpeername(fd_, reinterpret_cast<sockaddr*>(&peer.storage),
                       &peer.size) == -1) {
         std::perror("getpeername");
-        peer_address_ = {};
+        peer_address_.reset();
         return;
     }
 
@@ -346,7 +346,7 @@ void socket::update_peer_address() {
 
 void socket::store_peer_address(const address& peer) {
     if (peer.size <= sizeof(peer.storage.ss_family)) {
-        peer_address_ = {};
+        peer_address_.reset();
         return;
     }
 

@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
+#include <optional>
 #include <print>
 #include <pthread.h>
 
@@ -77,10 +78,10 @@ thread_system::create_thread(const thread::create_info& info,
         return static_cast<exret_t>(thread_error::CREATE_THREAD_FAIL);
     }
 
-    result = slot.attrs_.apply(info);
+    result = slot.attrs_.apply(info.attrs);
     if (result == EXRET_SUCCESS) {
         const int native_result = ::pthread_create(
-            &slot.handle_, &slot.attrs_.native_, task.run, task.arg);
+            &slot.handle_, &*slot.attrs_.native_, task.run, task.arg);
         if (native_result != 0) {
             std::print(stderr, "pthread_create: {} (error_code={})\n",
                        std::strerror(native_result), native_result);

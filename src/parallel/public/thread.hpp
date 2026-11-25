@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <limits>
+#include <optional>
 #include <pthread.h> // IWYU pragma: keep
 #include <sched.h>
 #include <signal.h> // IWYU pragma: keep
@@ -37,8 +38,6 @@ public:
     enum class id : std::int64_t {
         INVALID = INVALID_ID,
     };
-
-    struct create_info;
 
     class attributes final
     {
@@ -98,18 +97,28 @@ public:
             std::span<const int> blocked = {};
         };
 
+        struct create_info final {
+            attributes::stack stack = {};
+            attributes::detach_state detach =
+                attributes::detach_state::JOINABLE;
+            attributes::scheduling scheduling = {};
+            std::span<const std::size_t> affinity = {};
+            attributes::signal_mask signals = {};
+        };
+
     private:
         friend class thread;
         friend class thread_system;
 
         void reset();
-        [[nodiscard]] exret_t apply(const create_info& requested);
-        [[nodiscard]] exret_t apply_stack_attributes(const stack& requested);
+        [[nodiscard]] exret_t apply(const create_info& info);
+        [[nodiscard]] exret_t apply_stack_attributes(const stack& stack_config);
         [[nodiscard]] exret_t
-        apply_scheduling_attributes(const scheduling& requested);
+        apply_scheduling_attributes(const scheduling& scheduling_config);
         [[nodiscard]] exret_t
         apply_cpu_affinity(std::span<const std::size_t> affinity);
-        [[nodiscard]] exret_t apply_signal_mask(const signal_mask& requested);
+        [[nodiscard]] exret_t
+        apply_signal_mask(const signal_mask& signal_mask_config);
 
         stack stack_ = {};
         detach_state detach_ = detach_state::JOINABLE;
@@ -117,7 +126,7 @@ public:
         signal_mask_source signal_source_ = signal_mask_source::INHERIT;
 
         // NOLINTNEXTLINE(misc-include-cleaner)
-        pthread_attr_t native_ = {};
+        std::optional<pthread_attr_t> native_ = {};
         cpu_set_t cpu_mask_ = {};
         // NOLINTNEXTLINE(misc-include-cleaner)
         sigset_t blocked_signal_mask_ = {};
@@ -129,12 +138,7 @@ public:
     using arguments = std::tuple<Types...>;
 
     struct create_info final {
-        thread::attributes::stack stack = {};
-        thread::attributes::detach_state detach =
-            thread::attributes::detach_state::JOINABLE;
-        thread::attributes::scheduling scheduling = {};
-        std::span<const std::size_t> affinity = {};
-        thread::attributes::signal_mask signals = {};
+        thread::attributes::create_info attrs = {};
     };
 
     struct task final {

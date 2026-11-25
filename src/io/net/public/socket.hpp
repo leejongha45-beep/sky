@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <netinet/in.h> // IWYU pragma: keep
+#include <optional>
 #include <span>
 #include <sys/socket.h>
 
@@ -134,7 +135,7 @@ private:
     protocol protocol_ = protocol::DEFAULT;
     option options_ = option::NONE;
     address local_address_ = {};
-    address peer_address_ = {};
+    std::optional<address> peer_address_ = {};
 };
 
 } // namespace sky::io

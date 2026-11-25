@@ -19,8 +19,11 @@
 namespace sky::parallel {
 
 exret_t thread::create_attribute() {
-    const int native_result = ::pthread_attr_init(&attrs_.native_);
+    assert(attrs_.native_.has_value() == false);
+
+    const int native_result = ::pthread_attr_init(&attrs_.native_.emplace());
     if (native_result != 0) {
+        attrs_.native_.reset();
         std::print(stderr, "pthread_attr_init: {} (error_code={})\n",
                    std::strerror(native_result), native_result);
         return static_cast<exret_t>(
@@ -30,7 +33,10 @@ exret_t thread::create_attribute() {
 }
 
 void thread::destroy_attribute() {
-    const int native_result = ::pthread_attr_destroy(&attrs_.native_);
+    assert(attrs_.native_.has_value() == true);
+
+    const int native_result = ::pthread_attr_destroy(&*attrs_.native_);
+    attrs_.native_.reset();
     if (native_result != 0) {
         std::print(stderr, "pthread_attr_destroy: {} (error_code={})\n",
                    std::strerror(native_result), native_result);
@@ -75,59 +81,62 @@ void thread::detach(id thread_id) {
 }
 
 void thread::attributes::reset() {
+    assert(native_.has_value() == false);
+
     stack_ = {};
     detach_ = detach_state::JOINABLE;
     scheduling_ = {};
     signal_source_ = signal_mask_source::INHERIT;
-    native_ = {};
     cpu_mask_ = {};
     blocked_signal_mask_ = {};
 }
 
-exret_t thread::attributes::apply(const create_info& requested) {
-    assert(requested.scheduling.scope == contention_scope::SYSTEM);
-    assert(requested.detach == detach_state::JOINABLE ||
-           requested.detach == detach_state::DETACHED);
+exret_t thread::attributes::apply(const create_info& info) {
+    assert(native_.has_value() == true);
+    assert(info.scheduling.scope == contention_scope::SYSTEM);
+    assert(info.detach == detach_state::JOINABLE ||
+           info.detach == detach_state::DETACHED);
 
-    const int native_result = ::pthread_attr_setdetachstate(
-        &native_, static_cast<int>(requested.detach));
+    const int native_result =
+        ::pthread_attr_setdetachstate(&*native_, static_cast<int>(info.detach));
     if (native_result != 0) {
         std::print(stderr, "pthread_attr_setdetachstate: {} (error_code={})\n",
                    std::strerror(native_result), native_result);
         return static_cast<exret_t>(thread_error::APPLY_THREAD_ATTRIBUTES_FAIL);
     }
 
-    detach_ = requested.detach;
-    exret_t result = apply_stack_attributes(requested.stack);
+    detach_ = info.detach;
+    exret_t result = apply_stack_attributes(info.stack);
     if (result == EXRET_SUCCESS) {
-        result = apply_scheduling_attributes(requested.scheduling);
+        result = apply_scheduling_attributes(info.scheduling);
     }
     if (result == EXRET_SUCCESS) {
-        result = apply_cpu_affinity(requested.affinity);
+        result = apply_cpu_affinity(info.affinity);
     }
     if (result == EXRET_SUCCESS) {
-        result = apply_signal_mask(requested.signals);
+        result = apply_signal_mask(info.signals);
     }
     return result;
 }
 
-exret_t thread::attributes::apply_stack_attributes(const stack& requested) {
-    if (!requested.buffer.empty()) {
-        const int native_result = ::pthread_attr_setstack(
-            &native_, requested.buffer.data(), requested.buffer.size_bytes());
+exret_t thread::attributes::apply_stack_attributes(const stack& stack_config) {
+    if (!stack_config.buffer.empty()) {
+        const int native_result =
+            ::pthread_attr_setstack(&*native_, stack_config.buffer.data(),
+                                    stack_config.buffer.size_bytes());
         if (native_result != 0) {
             std::print(stderr, "pthread_attr_setstack: {} (error_code={})\n",
                        std::strerror(native_result), native_result);
             return static_cast<exret_t>(
                 thread_error::APPLY_THREAD_ATTRIBUTES_FAIL);
         }
-        stack_ = requested;
+        stack_ = stack_config;
         return EXRET_SUCCESS;
     }
 
-    if (requested.size != DEFAULT_STACK_SIZE) {
+    if (stack_config.size != DEFAULT_STACK_SIZE) {
         const int native_result =
-            ::pthread_attr_setstacksize(&native_, requested.size);
+            ::pthread_attr_setstacksize(&*native_, stack_config.size);
         if (native_result != 0) {
             std::print(stderr,
                        "pthread_attr_setstacksize: {} (error_code={})\n",
@@ -136,9 +145,9 @@ exret_t thread::attributes::apply_stack_attributes(const stack& requested) {
                 thread_error::APPLY_THREAD_ATTRIBUTES_FAIL);
         }
     }
-    if (requested.guard != DEFAULT_GUARD_SIZE) {
+    if (stack_config.guard != DEFAULT_GUARD_SIZE) {
         const int native_result =
-            ::pthread_attr_setguardsize(&native_, requested.guard);
+            ::pthread_attr_setguardsize(&*native_, stack_config.guard);
         if (native_result != 0) {
             std::print(stderr,
                        "pthread_attr_setguardsize: {} (error_code={})\n",
@@ -147,25 +156,26 @@ exret_t thread::attributes::apply_stack_attributes(const stack& requested) {
                 thread_error::APPLY_THREAD_ATTRIBUTES_FAIL);
         }
     }
-    stack_ = requested;
+    stack_ = stack_config;
     return EXRET_SUCCESS;
 }
 
-exret_t
-thread::attributes::apply_scheduling_attributes(const scheduling& requested) {
-    int native_result = ::pthread_attr_setscope(&native_, PTHREAD_SCOPE_SYSTEM);
+exret_t thread::attributes::apply_scheduling_attributes(
+    const scheduling& scheduling_config) {
+    int native_result =
+        ::pthread_attr_setscope(&*native_, PTHREAD_SCOPE_SYSTEM);
     if (native_result != 0) {
         std::print(stderr, "pthread_attr_setscope: {} (error_code={})\n",
                    std::strerror(native_result), native_result);
         return static_cast<exret_t>(thread_error::APPLY_THREAD_ATTRIBUTES_FAIL);
     }
-    if (requested.source != scheduling_source::EXPLICIT) {
-        scheduling_ = requested;
+    if (scheduling_config.source != scheduling_source::EXPLICIT) {
+        scheduling_ = scheduling_config;
         return EXRET_SUCCESS;
     }
 
     int policy = SCHED_OTHER;
-    switch (requested.policy) {
+    switch (scheduling_config.policy) {
     case scheduling_policy::OTHER:
         break;
     case scheduling_policy::FIFO:
@@ -176,7 +186,7 @@ thread::attributes::apply_scheduling_attributes(const scheduling& requested) {
         break;
     }
 
-    native_result = ::pthread_attr_setschedpolicy(&native_, policy);
+    native_result = ::pthread_attr_setschedpolicy(&*native_, policy);
     if (native_result != 0) {
         std::print(stderr, "pthread_attr_setschedpolicy: {} (error_code={})\n",
                    std::strerror(native_result), native_result);
@@ -185,8 +195,8 @@ thread::attributes::apply_scheduling_attributes(const scheduling& requested) {
 
     // NOLINTNEXTLINE(misc-include-cleaner)
     sched_param parameters = {};
-    parameters.sched_priority = requested.priority;
-    native_result = ::pthread_attr_setschedparam(&native_, &parameters);
+    parameters.sched_priority = scheduling_config.priority;
+    native_result = ::pthread_attr_setschedparam(&*native_, &parameters);
     if (native_result != 0) {
         std::print(stderr, "pthread_attr_setschedparam: {} (error_code={})\n",
                    std::strerror(native_result), native_result);
@@ -194,13 +204,13 @@ thread::attributes::apply_scheduling_attributes(const scheduling& requested) {
     }
 
     native_result =
-        ::pthread_attr_setinheritsched(&native_, PTHREAD_EXPLICIT_SCHED);
+        ::pthread_attr_setinheritsched(&*native_, PTHREAD_EXPLICIT_SCHED);
     if (native_result != 0) {
         std::print(stderr, "pthread_attr_setinheritsched: {} (error_code={})\n",
                    std::strerror(native_result), native_result);
         return static_cast<exret_t>(thread_error::APPLY_THREAD_ATTRIBUTES_FAIL);
     }
-    scheduling_ = requested;
+    scheduling_ = scheduling_config;
     return EXRET_SUCCESS;
 }
 
@@ -225,7 +235,7 @@ thread::attributes::apply_cpu_affinity(std::span<const std::size_t> affinity) {
     }
 
     const int native_result =
-        ::pthread_attr_setaffinity_np(&native_, sizeof(cpu_mask), &cpu_mask);
+        ::pthread_attr_setaffinity_np(&*native_, sizeof(cpu_mask), &cpu_mask);
     if (native_result != 0) {
         std::print(stderr, "pthread_attr_setaffinity_np: {} (error_code={})\n",
                    std::strerror(native_result), native_result);
@@ -235,9 +245,10 @@ thread::attributes::apply_cpu_affinity(std::span<const std::size_t> affinity) {
     return EXRET_SUCCESS;
 }
 
-exret_t thread::attributes::apply_signal_mask(const signal_mask& requested) {
-    if (requested.source != signal_mask_source::EXPLICIT) {
-        signal_source_ = requested.source;
+exret_t
+thread::attributes::apply_signal_mask(const signal_mask& signal_mask_config) {
+    if (signal_mask_config.source != signal_mask_source::EXPLICIT) {
+        signal_source_ = signal_mask_config.source;
         return EXRET_SUCCESS;
     }
 
@@ -249,7 +260,7 @@ exret_t thread::attributes::apply_signal_mask(const signal_mask& requested) {
                    std::strerror(native_result), native_result);
         return static_cast<exret_t>(thread_error::APPLY_THREAD_ATTRIBUTES_FAIL);
     }
-    for (const int signal : requested.blocked) {
+    for (const int signal : signal_mask_config.blocked) {
         if (::sigaddset(&blocked_signal_mask, signal) == -1) {
             const int native_result = errno;
             std::print(stderr, "sigaddset: {} (signal={}, error_code={})\n",
@@ -259,14 +270,14 @@ exret_t thread::attributes::apply_signal_mask(const signal_mask& requested) {
         }
     }
     const int native_result =
-        ::pthread_attr_setsigmask_np(&native_, &blocked_signal_mask);
+        ::pthread_attr_setsigmask_np(&*native_, &blocked_signal_mask);
     if (native_result != 0) {
         std::print(stderr, "pthread_attr_setsigmask_np: {} (error_code={})\n",
                    std::strerror(native_result), native_result);
         return static_cast<exret_t>(thread_error::APPLY_THREAD_ATTRIBUTES_FAIL);
     }
     blocked_signal_mask_ = blocked_signal_mask;
-    signal_source_ = requested.source;
+    signal_source_ = signal_mask_config.source;
     return EXRET_SUCCESS;
 }
 

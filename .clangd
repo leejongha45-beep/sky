@@ -33,8 +33,8 @@ Diagnostics:
     IgnoreHeader: ['(^|/)bits/types/(struct_sched_param|sigset_t)[.]h$']
 ---
 If:
-  PathMatch: src/parallel/public/mutex[.]hpp
+  PathMatch: 'src/parallel/(public/mutex[.]hpp|private/mutex[.]cpp)'
 Diagnostics:
   Includes:
-    # glibc exposes pthread_mutex_t through <pthread.h>.
+    # glibc exposes pthread_mutex_t and pthread_mutexattr_t through <pthread.h>.
     IgnoreHeader: ['(^|/)bits/pthreadtypes[.]h$']
