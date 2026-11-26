@@ -1,0 +1,7 @@
+add_subdirectory(base)
+add_subdirectory(memory)
+add_subdirectory(container)
+add_subdirectory(io/file)
+add_subdirectory(parser/json)
+add_subdirectory(io/net)
+add_subdirectory(parallel)
