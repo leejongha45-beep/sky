@@ -1,9 +1,11 @@
 add_library(
     sky_parallel
     STATIC
+    public/guard.hpp
     public/mutex.hpp
     public/thread.hpp
     public/thread_system.hpp
+    private/guard.cpp
     private/mutex.cpp
     private/thread.cpp
     private/thread_system.cpp
